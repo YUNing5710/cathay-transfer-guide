@@ -12,9 +12,9 @@ const SECTIONS: { h: [string, string, string]; p: [string, string, string] }[] =
   },
   {
     h: ['2. 我们收集的信息', '2. 我哋收集嘅資料', '2. Information we collect'],
-    p: ['航班信息：到港和离港航班号、日期、登机口、航班状态。会员信息：登录时的会员号码、姓名、会员等级、里数（演示版使用示例账号）。行程与偏好：你选的偏好、加入的活动、模拟订单、完成状态。AI 对话：你输入或用语音说出的问题。设备信息：仅在你授权时使用设备方向（指南针）辅助箭头导航；本应用不读取你的 GPS 定位。',
-      '航班資料：到港同離港航班號、日期、閘口、航班狀態。會員資料：登入時嘅會員號碼、姓名、會員級別、里數（示範版用示例戶口）。行程同喜好：你揀嘅喜好、加入嘅活動、模擬訂單、完成狀態。AI 對話：你打字或者講出嘅問題。裝置資料：只喺你授權時用裝置方向（指南針）幫箭咀導航；本應用唔會讀取你嘅 GPS 位置。',
-      'Flights: inbound and outbound flight numbers, dates, gates and status. Membership: member number, name, tier and miles when you log in (the demo uses a sample account). Plan and preferences: chosen preferences, added activities, simulated orders and progress. AI chat: questions you type or speak. Device: device orientation (compass) only if you allow it, to point the arrow; the app does not read your GPS location.'],
+    p: ['航班信息：到港和离港航班号、日期、登机口、航班状态。会员信息：登录时的会员号码、姓名、会员等级、里数（演示版使用示例账号）。行程与偏好：你选的偏好、加入的活动、模拟订单、完成状态。AI 对话：你输入或用语音说出的问题。设备信息：仅在你授权时使用设备方向（指南针）辅助箭头导航。位置信息：仅在你点“用定位校准步速”并授权后使用，用于估算步行速度和到登机口的时间；位置只在本机计算，不上传服务器，也不发送给 AI；只会把预估时间调长。',
+      '航班資料：到港同離港航班號、日期、閘口、航班狀態。會員資料：登入時嘅會員號碼、姓名、會員級別、里數（示範版用示例戶口）。行程同喜好：你揀嘅喜好、加入嘅活動、模擬訂單、完成狀態。AI 對話：你打字或者講出嘅問題。裝置資料：只喺你授權時用裝置方向（指南針）幫箭咀導航。位置資料：只喺你撳「用定位校準速度」並授權之後先會用，用嚟估行路速度同去閘口嘅時間；位置只喺本機計算，唔會上傳伺服器，亦唔會傳畀 AI；只會將預計時間計長。',
+      'Flights: inbound and outbound flight numbers, dates, gates and status. Membership: member number, name, tier and miles when you log in (the demo uses a sample account). Plan and preferences: chosen preferences, added activities, simulated orders and progress. AI chat: questions you type or speak. Device: device orientation (compass) only if you allow it, to point the arrow. Location: only after you tap “Use location to tune pace” and allow it, to estimate walking speed and time to your gate; it is processed on your device only, never uploaded or sent to the AI, and can only lengthen estimates.'],
   },
   {
     h: ['3. 使用目的', '3. 用途', '3. How we use it'],
@@ -42,9 +42,9 @@ const SECTIONS: { h: [string, string, string]; p: [string, string, string] }[] =
   },
   {
     h: ['7. 你的权利', '7. 你嘅權利', '7. Your rights'],
-    p: ['你可以拒绝勾选同意；不同意时仍可使用航班信息、时间计算和导航，只是不能登录会员。你可以随时退出登录、拒绝设备方向和麦克风权限，或要求我们删除与你相关的数据。如有疑问请联系项目团队。',
-      '你可以唔剔同意；唔同意都照樣用到航班資料、時間計算同導航，只係登入唔到會員。你可以隨時登出、拒絕裝置方向同咪高風權限，或者要求我哋刪除同你有關嘅資料。有疑問請聯絡項目團隊。',
-      'You may decline; without consent you can still use flight info, time calculation and navigation, but cannot log in. You can log out, deny orientation and microphone permissions, or ask us to delete your data at any time. Contact the project team with questions.'],
+    p: ['你可以拒绝勾选同意；不同意时仍可使用航班信息、时间计算和导航，只是不能登录会员。你可以随时退出登录、拒绝设备方向、定位和麦克风权限，或要求我们删除与你相关的数据。如有疑问请联系项目团队。',
+      '你可以唔剔同意；唔同意都照樣用到航班資料、時間計算同導航，只係登入唔到會員。你可以隨時登出、拒絕裝置方向、定位同咪高風權限，或者要求我哋刪除同你有關嘅資料。有疑問請聯絡項目團隊。',
+      'You may decline; without consent you can still use flight info, time calculation and navigation, but cannot log in. You can log out, deny orientation, location and microphone permissions, or ask us to delete your data at any time. Contact the project team with questions.'],
   },
 ];
 

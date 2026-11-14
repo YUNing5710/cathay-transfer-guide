@@ -102,6 +102,37 @@ export function useTrip() {
     }
   };
   const markSim = () => { simRef.current = true; };
+  // ---- 可选 GPS：旅客同意后才开启；只取精度 ≤ 20 米的位置；只会把步速调慢 ----
+  const [gpsOn, setGpsOn] = useState(false);
+  const gpsRef = useRef<{ id: number | null; last: { lat: number; lon: number; at: number } | null; dist: number; since: number }>({ id: null, last: null, dist: 0, since: 0 });
+  const paceRef = useRef(pace); paceRef.current = pace;
+  const stopGps = () => { const g = gpsRef.current; if (g.id !== null) navigator.geolocation?.clearWatch(g.id); g.id = null; g.last = null; setGpsOn(false); };
+  const startGps = () => {
+    if (!navigator.geolocation) { note(L('这个浏览器不支持定位，会继续用默认步速。', '呢個瀏覽器用唔到定位，會照用預設速度。', 'Location is not supported here; using the default pace.'), 'warn'); return; }
+    const g = gpsRef.current;
+    g.id = navigator.geolocation.watchPosition((p) => {
+      if (p.coords.accuracy > 20) return;                       // 室内精度差就不用
+      const now = Date.now(), cur = { lat: p.coords.latitude, lon: p.coords.longitude, at: now };
+      if (g.last) {
+        const R0 = 6371000, dLat = (cur.lat - g.last.lat) * Math.PI / 180, dLon = (cur.lon - g.last.lon) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 + Math.cos(g.last.lat * Math.PI / 180) * Math.cos(cur.lat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+        const d = 2 * R0 * Math.asin(Math.sqrt(a));
+        if (d < 50) g.dist += d;                                 // 跳点过滤
+      } else g.since = now;
+      g.last = cur;
+      const mins = (now - g.since) / 60000;
+      if (mins >= 2 && g.dist >= 60) {
+        const measured = g.dist / mins;
+        g.dist = 0; g.since = now;
+        if (measured < paceRef.current - 3) {                    // 只会变慢
+          const next = Math.round(Math.max(35, paceRef.current * 0.7 + measured * 0.3));
+          setPace(next); setPaceTuned(true);
+        }
+      }
+    }, () => { stopGps(); note(L('没有获得定位权限，会继续用默认步速。', '冇定位權限，會照用預設速度。', 'Location was not allowed; using the default pace.'), 'warn'); }, { enableHighAccuracy: true, maximumAge: 5000 });
+    setGpsOn(true);
+  };
+  useEffect(() => () => { const g = gpsRef.current; if (g.id !== null) navigator.geolocation?.clearWatch(g.id); }, []);
   const sec = { people: Math.max(0, secQueue(clock).people + secJitter + secSurge), lanes: 4 };
   const secWait = Math.ceil((sec.people * 20) / sec.lanes / 60) + 2;
   const atSec = here === 'arr';
@@ -212,7 +243,7 @@ export function useTrip() {
   });
 
   return {
-    live, online, calibrate, markSim, paceTuned,
+    live, online, calibrate, markSim, paceTuned, gpsOn, startGps, stopGps,
     readyOrders, soonOrders, pre, secWait, walkSec, milesLog, pace, setPace, sec, secSurge, setSecSurge,
     clock, setClock, kitchens, setKitchens, kitchenAt, delay, setDelay, boardEarly, setBoardEarly, boardBuffer,
     gate, setGate, member, miles, pending, plan, setPlan, here, setHere, nav, setNav,
@@ -242,7 +273,7 @@ export function useTrip() {
       return dropped;
     },
     reset: () => {
-      setPace(65); setPaceTuned(false); walkFrom.current = { at: Date.now(), from: 'arr' }; setSpeed(0); setBag('ok'); setChange(null); setUndo(null); setMilesLog([]); setSecSurge(0);
+      stopGps(); setPace(65); setPaceTuned(false); walkFrom.current = { at: Date.now(), from: 'arr' }; setSpeed(0); setBag('ok'); setChange(null); setUndo(null); setMilesLog([]); setSecSurge(0);
       setClock(START_CLOCK); setDelay(0); setBoardEarly(0); setGate('g23'); setMember(null); setMiles(0); setPending(0);
       setPlan([]); notified.current.clear(); setHere('arr'); setLoungeFull(false); setLoungeOffer(false); setBoarded(false);
       setShowerPeak(false); setShowerTicket({}); setCabin('Y'); setNav({ key: '', leg: 0, prog: 0 }); setKitchens(initKitchens()); setGenUsed(false);
