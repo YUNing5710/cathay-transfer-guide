@@ -96,7 +96,7 @@ export const App = () => {
         )}
 
         <main ref={scroller} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-          {!entered && <Entry onDone={(info) => { if (info.gate) { const id = ensureGate(info.gate); if (id) t.setGate(id); } if (info.bag) t.setBag(info.bag); setEntered(true); setTab('home'); }} />}
+      {!entered && <Entry onDone={(info) => { const g = t.live?.out.depGate || info.gate; if (g) { const id = ensureGate(g); if (id) t.setGate(id); } if (info.bag) t.setBag(info.bag); setEntered(true); setTab('home'); }} />}
           {entered && tab === 'home' && <Home t={t} goExplore={() => setTab('explore')} goMap={() => setTab('map')} openOrder={() => openOrder()} openHelp={() => setSheet('help')} arrive={arrive} />}
           {entered && tab === 'explore' && <Explore t={t} openOrder={openOrder} goHome={goHome} />}
           {entered && tab === 'map' && <MapView t={t} onArrive={arrive} />}

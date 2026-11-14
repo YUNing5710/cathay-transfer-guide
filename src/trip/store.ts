@@ -238,7 +238,7 @@ export function useTrip() {
     }
     if (f.depGate) {
       const id = ensureGate(f.depGate);
-      if (id) { setGate(id); if (p && p.depGate !== f.depGate) note(`${f.no} 登机口变更为 ${f.depGate} · 路线已重算`, 'warn'); }
+      if (id) { const changed = p ? p.depGate !== f.depGate : gate !== id; setGate(id); if (changed) note(`${f.no} 实时登机口为 ${f.depGate}（以 OAG 实时数据为准）· 路线已重算`, 'warn'); }
     }
   });
 
