@@ -10,7 +10,7 @@ Features: 一键生成顺路路线（均衡/美食/购物/观光/休息，填满
 所有可调参数（步速、舱位、会员等级、时间流速）只在可拖动的现场事件控制台里。
 */
 import React, { useEffect, useRef, useState } from 'react';
-import { FLIGHT, pname, dur } from './trip/data';
+import { FLIGHT, pname, dur, ensureGate } from './trip/data';
 import { L, Lang, setLang, useLang } from './trip/i18n';
 import { useTrip } from './trip/store';
 import { C, Icon, sans, Sheet, btn } from './trip/ui';
@@ -95,7 +95,7 @@ export const App = () => {
         )}
 
         <main ref={scroller} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-          {!entered && <Entry onDone={() => { setEntered(true); setTab('home'); }} />}
+          {!entered && <Entry onDone={(info) => { if (info.gate) { const id = ensureGate(info.gate); if (id) t.setGate(id); } if (info.bag) t.setBag(info.bag); setEntered(true); setTab('home'); }} />}
           {entered && tab === 'home' && <Home t={t} goExplore={() => setTab('explore')} goMap={() => setTab('map')} openOrder={() => openOrder()} openHelp={() => setSheet('help')} arrive={arrive} />}
           {entered && tab === 'explore' && <Explore t={t} openOrder={openOrder} goHome={goHome} />}
           {entered && tab === 'map' && <MapView t={t} onArrive={arrive} />}

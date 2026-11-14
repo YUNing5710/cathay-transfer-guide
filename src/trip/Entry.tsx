@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ARRIVALS, city, DEPARTURES, FLIGHT, hm, InFlight, OutFlight, resetFlights, setFlights } from './data';
 import { L, useLang } from './i18n';
 import { btn, C, Icon, mono } from './ui';
+import { clearDeepLink, DeepLink, readDeepLink } from './deeplink';
 
 type Way = 'card' | 'seat' | 'nfc' | 'app';
 const ways = (): { k: Way; t: string; d: string; icon: string }[] => [
@@ -31,14 +32,27 @@ const QR = () => {
   );
 };
 
-export const Entry = ({ onDone }: { onDone: () => void }) => {
+export interface EntryInfo { gate?: string; bag?: 'ok' | 'unknown'; term?: string }
+export const Entry = ({ onDone }: { onDone: (info: EntryInfo) => void }) => {
   useLang();
-  const [way, setWay] = useState<Way | null>(null);
-  const [stage, setStage] = useState<'choose' | 'scan' | 'pick' | 'ok'>('choose');
+  // 网址带了航班 → 识别动画 → 自动进入；纯网址或格式错误 → 选择/填写航班
+  const [link] = useState<DeepLink>(() => readDeepLink());
+  const [way, setWay] = useState<Way | null>(() => (link.status === 'ok' ? ((['card', 'seat', 'nfc', 'app'] as Way[]).includes(link.src as Way) ? (link.src as Way) : 'card') : link.status === 'none' ? null : 'card'));
+  const [stage, setStage] = useState<'choose' | 'scan' | 'pick' | 'ok' | 'link'>(link.status === 'ok' ? 'link' : 'pick');
+  const [inNo, setInNo] = useState(''); const [outNo, setOutNo] = useState('');
+  const info: EntryInfo = link.status === 'ok' ? { gate: link.gate, bag: link.bag, term: link.term } : { bag: 'unknown' };
+  const finish = () => { clearDeepLink(); onDone(info); };
+  useEffect(() => {
+    if (stage !== 'link' || !link.inF || !link.outF) return;
+    setFlights(link.inF, link.outF);
+    const a = setTimeout(() => setStage('ok'), 1600);
+    return () => clearTimeout(a);
+  }, [stage]);
+  useEffect(() => { if (stage !== 'ok' || link.status !== 'ok') return; const b = setTimeout(finish, 1800); return () => clearTimeout(b); }, [stage]);
   const [inSel, setInSel] = useState<InFlight | null>(null);
   const [outSel, setOutSel] = useState<OutFlight | null>(null);
   const [q, setQ] = useState('');
-  const needsPick = way === 'seat' || way === 'nfc';
+  const needsPick = link.status !== 'ok';
   const W = ways();
 
   useEffect(() => {
@@ -57,7 +71,22 @@ export const Entry = ({ onDone }: { onDone: () => void }) => {
 
   return (
     <div style={{ flex: 1, padding: '18px 16px', display: 'grid', alignContent: 'start', gap: 14 }}>
-      <style>{`@keyframes scanl{0%{top:6%}100%{top:90%}}@keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:none;opacity:1}}`}</style>
+      <style>{`@keyframes scanl{0%{top:6%}100%{top:90%}}@keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:none;opacity:1}}@keyframes ring{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.5);opacity:0}}`}</style>
+      {stage === 'link' && link.inF && link.outF && (
+        <div style={{ display: 'grid', justifyItems: 'center', gap: 16, paddingTop: 40 }}>
+          <div style={{ position: 'relative', width: 120, height: 120, borderRadius: 60, background: C.jadeSoft, display: 'grid', placeItems: 'center' }}>
+            <div style={{ position: 'absolute', inset: 0, borderRadius: 60, border: `3px solid ${C.jade}`, animation: 'ring 1.2s ease-out infinite' }} />
+            <Icon n="route" s={52} c={C.jade} w={1.8} />
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>{L('正在识别你的行程…', '識別緊你嘅行程…', 'Reading your trip…')}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: mono, fontSize: 20, fontWeight: 700 }}>
+            <span style={{ animation: 'pop .5s ease both' }}>{link.inF.no}</span>
+            <span style={{ color: C.muted, animation: 'pop .5s ease .35s both' }}>→ HKG →</span>
+            <span style={{ animation: 'pop .5s ease .7s both' }}>{link.outF.no}</span>
+          </div>
+          {link.date && <div style={{ fontSize: 13, color: C.muted }}>{link.date}</div>}
+        </div>
+      )}
       {stage === 'choose' && (
         <>
           <div>
@@ -91,9 +120,9 @@ export const Entry = ({ onDone }: { onDone: () => void }) => {
       {stage === 'pick' && (
         <div style={{ display: 'grid', gap: 12 }}>
           <div>
-            <div style={{ fontSize: 13, color: C.muted }}>{L('已连接', '已連接', 'Connected')} · {label}</div>
+            <div style={{ fontSize: 13, color: C.muted }}>Hong Kong International Airport · {L('中转', '轉機', 'Transfer')}</div>
             <div style={{ fontSize: 20, fontWeight: 800, marginTop: 2 }}>{L('选择你的航班', '揀你嘅航班', 'Choose your flights')}</div>
-            <div style={{ fontSize: 13, color: C.muted, marginTop: 4, lineHeight: 1.5 }}>{L(`${label}为公共设备，无法读取你的行程。请选择刚乘坐和接下来要转乘的航班。`, `${label}係公共設備，讀唔到你嘅行程。麻煩揀返啱啱搭同埋跟住要轉嘅航班。`, `${label} is shared and cannot read your booking. Pick the flight you arrived on and your next flight.`)}</div>
+            <div style={{ fontSize: 13, color: C.muted, marginTop: 4, lineHeight: 1.5 }}>{link.status === 'bad' ? L('二维码里的航班信息无法识别，请选择或输入你的航班。', 'QR code 入面嘅航班資料認唔到，請揀或者輸入你嘅航班。', 'We could not read the flights in this code. Please pick or enter them.') : L('请选择或输入刚乘坐和接下来要转乘的航班。', '請揀或者輸入啱啱搭同埋跟住要轉嘅航班。', 'Pick or enter the flight you arrived on and your next flight.')}</div>
           </div>
           <div>
             <label htmlFor="fq" style={{ fontSize: 12, color: C.muted }}>{L('搜索航班号或城市', '搵航班號或者城市', 'Search flight or city')}</label>
@@ -110,9 +139,22 @@ export const Entry = ({ onDone }: { onDone: () => void }) => {
             {departures.map((f) => <Choice key={f.no} on={outSel?.no === f.no} onClick={() => setOutSel(f)} a={`${f.no} ${city(f.toCode)}`} b={`${L('起飞', '起飛', 'dep')} ${hm(f.dep)}`} sub={`${f.miles} Asia Miles`} />)}
             {!departures.length && <div style={{ fontSize: 13, color: C.muted }}>{L('没有匹配的离港航班', '搵唔到離港航班', 'No matching departures')}</div>}
           </div>
-          <button disabled={!inSel || !outSel} style={{ ...btn(), width: '100%', padding: '12px 14px', fontSize: 15, opacity: inSel && outSel ? 1 : 0.5 }}
-            onClick={() => { if (inSel && outSel) { setFlights(inSel, outSel); setStage('ok'); } }}>{L('确认航班', '確認航班', 'Confirm flights')}</button>
-          <button style={btn('ghost')} onClick={() => setStage('choose')}>{L('换一种方式', '轉個方法', 'Try another way')}</button>
+          <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{L('列表里没有？直接输入航班号', '列表冇？直接輸入航班號', 'Not listed? Type the flight numbers')}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <label style={{ fontSize: 12, color: C.muted }}>{L('到港航班', '到港航班', 'Arrived on')}
+              <input value={inNo} onChange={(e) => { setInNo(e.target.value.toUpperCase()); setInSel(null); }} placeholder="CX959" style={fld} /></label>
+            <label style={{ fontSize: 12, color: C.muted }}>{L('离港航班', '離港航班', 'Next flight')}
+              <input value={outNo} onChange={(e) => { setOutNo(e.target.value.toUpperCase()); setOutSel(null); }} placeholder="CX715" style={fld} /></label>
+          </div>
+          {(() => {
+            const ok = /^[A-Z0-9]{2}\d{1,4}$/;
+            const a = inSel ?? (ok.test(inNo) ? ({ no: inNo, from: '', fromCode: '', arr: '--:--', status: 'landed' } as InFlight) : null);
+            const d = outSel ?? (ok.test(outNo) ? ({ no: outNo, to: '', toCode: '', dep: 20 * 60, miles: 0 } as OutFlight) : null);
+            return (
+              <button disabled={!a || !d} style={{ ...btn(), width: '100%', padding: '12px 14px', fontSize: 15, opacity: a && d ? 1 : 0.5 }}
+                onClick={() => { if (a && d) { setFlights(a, d); setStage('ok'); } }}>{L('确认航班', '確認航班', 'Confirm flights')}</button>
+            );
+          })()}
         </div>
       )}
       {stage === 'ok' && (
@@ -125,11 +167,11 @@ export const Entry = ({ onDone }: { onDone: () => void }) => {
             </div>
           </div>
           <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 16, padding: 14, display: 'grid', gap: 10 }}>
-            <Row a={`${FLIGHT.inNo} ${city(FLIGHT.fromCode)}`} b={`${L('抵达', '到達', 'arr')} ${FLIGHT.arr}`} sub={L('已落地 · HKG T1', '已經落地 · HKG T1', 'Landed · HKG T1')} />
+            <Row a={`${FLIGHT.inNo} ${city(FLIGHT.fromCode)}`} b={`${L('抵达', '到達', 'arr')} ${FLIGHT.arr}`} sub={`${L('已落地', '已經落地', 'Landed')} · HKG ${info.term || 'T1'}`} />
             <div style={{ borderTop: `1px dashed ${C.line}` }} />
-            <Row a={`${FLIGHT.outNo} ${city(FLIGHT.toCode)}`} b={`${L('起飞', '起飛', 'dep')} ${hm(FLIGHT.dep)}`} sub={`Gate 23 · ${needsPick ? L('行李状态待确认', '行李未確認', 'Baggage to confirm') : L('行李已直挂', '行李已經直掛', 'Bags checked through')}`} />
+            <Row a={`${FLIGHT.outNo} ${city(FLIGHT.toCode)}`} b={`${L('起飞', '起飛', 'dep')} ${hm(FLIGHT.dep)}`} sub={`${info.gate ? `Gate ${info.gate} · ` : ''}${info.bag === 'unknown' ? L('行李状态待确认', '行李未確認', 'Baggage to confirm') : L('行李已直挂', '行李已經直掛', 'Bags checked through')}`} />
           </div>
-          <button style={{ ...btn(), width: '100%', padding: '12px 14px', fontSize: 15 }} onClick={onDone}>{L('进入转机指引', '開始轉機指引', 'Start guide')}</button>
+          <button style={{ ...btn(), width: '100%', padding: '12px 14px', fontSize: 15 }} onClick={finish}>{link.status === 'ok' ? L('正在进入转机指引…', '開緊轉機指引…', 'Opening your guide…') : L('进入转机指引', '開始轉機指引', 'Start guide')}</button>
         </div>
       )}
     </div>
@@ -153,3 +195,5 @@ const Row = ({ a, b, sub }: { a: string; b: string; sub: string }) => (
     <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{sub}</div>
   </div>
 );
+
+const fld: React.CSSProperties = { display: 'block', width: '100%', marginTop: 4, height: 38, borderRadius: 10, border: `1px solid ${C.line}`, padding: '0 12px', fontSize: 14, fontFamily: 'ui-monospace, Menlo, monospace', background: C.paper, color: C.ink };
