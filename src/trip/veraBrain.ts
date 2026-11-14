@@ -25,6 +25,14 @@ export function reply(q: string, c: Ctx): Msg {
   ]) };
   if (has('谢谢', '感谢', '唔該', '多謝', 'thank')) return { who: 'vera', text: L('不客气，该出发的时候我会提醒你。', '唔使客氣，夠鐘出發我會提你。', 'You are welcome. I will tell you when it is time to go.') };
 
+  // 准时登机第一：安全时间以外（安检前、返回缓冲、需立即登机、或剩不到 20 分钟）不推荐任何活动
+  const recQ = has('推荐', '路线', '逛', '安排', '无聊', '推介', '路線', '好悶', 'recommend', 'route', 'bored', '饿', '吃', '餐', '饭', '肚餓', '食', '飯', 'hungry', 'eat', 'food', '咖啡', 'coffee', '淋浴', '洗澡', '冲凉', '沖涼', 'shower', '贵宾室', '休息室', '貴賓室', 'lounge', '手信', '礼物', '禮物', 'gift', 'souvenir', '买', '购物', '免税', '買', '免稅', 'shop', '看飞机', '拍照', '打卡', '睇飛機', 'plane', 'photo', '清真', 'halal');
+  if (recQ && !(t.phase === 'free' && !t.atSec && t.left >= 20)) {
+    if (t.atSec) return { who: 'vera', text: L('先完成转机安检，安全时间开始后我再帮你安排活动。', '先過咗轉機安檢，安全時間開始之後我再幫你安排。', 'Clear transfer security first. Once your safe time starts I will help you plan.') };
+    const gateAct: Act = { label: L('导航去登机口', '帶我去閘口', 'Guide me to the gate'), run: () => { c.goMap(); c.close(); } };
+    return { who: 'vera', text: L(`为了确保你准时登机，现在不再推荐新的活动。请在 ${hm(t.leaveBy)} 前出发去 ${t.gateName} 号登机口。`, `為咗確保你準時登機，而家唔再推介新活動。請喺 ${hm(t.leaveBy)} 前出發去 ${t.gateName} 號閘口。`, `To make sure you board on time, I am not suggesting anything new. Leave for gate ${t.gateName} by ${hm(t.leaveBy)}.`), acts: [gateAct] };
+  }
+
   if (has('推荐', '路线', '逛', '安排', '无聊', '推介', '路線', '好悶', 'recommend', 'route', 'bored')) {
     const prefs: Pref[] = has('吃', '食', 'food') ? ['food'] : has('买', '買', 'shop') ? ['shop'] : has('看', '睇', 'sight') ? ['see'] : ['mix', 'food', 'see'];
     const opts = prefs.map((p, i) => ({ p, ps: generate(t, p, i + 3) })).filter((o) => o.ps.length);
@@ -85,5 +93,7 @@ export function reply(q: string, c: Ctx): Msg {
   return { who: 'vera', text: L('这个我不太确定，不想给你错误的信息。可以问我吃什么、去哪逛、还剩多久，或者我帮你接人工。', '呢樣我唔太肯定，唔想講錯。你可以問我食咩、去邊行、仲有幾耐，或者我幫你駁人工。', 'I am not sure about that and do not want to guess. Ask me about food, places, or time left, or I can get you an agent.'), acts: [callAct], fallback: true };
 }
 
-export const quick = () => [L('推荐几条路线', '推介幾條路線', 'Recommend a route'), L('我有点饿', '我肚餓', 'I am hungry'), L('还剩多少时间', '仲有幾多時間', 'How much time is left'), L('想洗个澡', '想沖個涼', 'I want a shower'), L('洗手间在哪', '洗手間喺邊', 'Where is the restroom'), L('想买手信', '想買手信', 'Gift ideas'), L('能去贵宾室吗', '我入唔入到貴賓室', 'Can I use a lounge'), L('行李直挂了吗', '行李直掛咗未', 'Are my bags checked through')];
+export const quick = (t?: Trip) => (t && !(t.phase === 'free' && !t.atSec && t.left >= 20))
+  ? [L('还剩多少时间', '仲有幾多時間', 'How much time is left'), L('登机口在哪', '閘口喺邊', 'Where is my gate'), L('洗手间在哪', '洗手間喺邊', 'Where is the restroom'), L('行李直挂了吗', '行李直掛咗未', 'Are my bags checked through')]
+  : [L('推荐几条路线', '推介幾條路線', 'Recommend a route'), L('我有点饿', '我肚餓', 'I am hungry'), L('还剩多少时间', '仲有幾多時間', 'How much time is left'), L('想洗个澡', '想沖個涼', 'I want a shower'), L('洗手间在哪', '洗手間喺邊', 'Where is the restroom'), L('想买手信', '想買手信', 'Gift ideas'), L('能去贵宾室吗', '我入唔入到貴賓室', 'Can I use a lounge'), L('行李直挂了吗', '行李直掛咗未', 'Are my bags checked through')];
 export const voiceSamples = () => [L('附近有什么好吃的', '附近有咩好食', 'Anything good to eat nearby'), L('我还来得及洗个澡吗', '我仲夠唔夠時間沖涼', 'Do I have time for a shower'), L('想去看飞机', '想去睇飛機', 'I want to see the planes')];

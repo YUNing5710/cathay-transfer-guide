@@ -8,9 +8,10 @@ import { btn, C, Icon, MilesTag } from './ui';
 /** One-tap route generator: pick a preference, it fills about 80% of the free time. */
 export const RouteGen = ({ t, onAdded, onClose, compact }: { t: Trip; onAdded?: () => void; onClose?: () => void; compact?: boolean }) => {
   useLang();
-  const [pref, setPref] = useState<Pref>('mix');
+  const [prefs, setPrefs] = useState<Pref[]>(['mix']);
+  const toggle = (k: Pref) => setPrefs((ps) => (ps.includes(k) ? (ps.length > 1 ? ps.filter((x) => x !== k) : ps) : [...ps, k]));
   const [seed, setSeed] = useState(0);
-  const picks = useMemo(() => generate(t, pref, seed), [pref, seed, t.left, t.plan, t.loungeFull, t.member, t.cabin, t.showerPeak, t.here]);
+  const picks = useMemo(() => generate(t, prefs, seed), [prefs, seed, t.left, t.plan, t.loungeFull, t.member, t.cabin, t.showerPeak, t.here]);
   const cost = picks.length ? t.costList(picks.map((p) => p.id)) : 0;
   const miles = picks.reduce((a, p) => a + p.miles, 0);
   const go = () => {
@@ -27,11 +28,11 @@ export const RouteGen = ({ t, onAdded, onClose, compact }: { t: Trip; onAdded?: 
         <strong style={{ fontSize: 15, flex: 1 }}>{L('一键生成顺路路线', '一撳排好順路路線', 'One-tap route')}</strong>
         {onClose && <button aria-label={L('收起', '收埋', 'Dismiss')} onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2 }}><Icon n="x" s={16} c={C.muted} /></button>}
       </div>
-      <div style={{ fontSize: 12, color: C.muted, margin: '4px 0 10px' }}>{L('按偏好排满可支配时间的八成左右，留出余量', '跟你喜好排滿八成時間，留返啲位', 'Fills about 80% of your free time, with a margin')}</div>
+      <div style={{ fontSize: 12, color: C.muted, margin: '4px 0 10px' }}>{L('偏好可多选；最多排满可支配时间的八成，至少留 10 分钟余量', '喜好可以揀多個；最多排滿八成時間，起碼留 10 分鐘', 'Pick one or more; fills up to 80% of your free time, keeping at least 10 min spare')}</div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {PREFS.map((p) => <button key={p.k} aria-pressed={pref === p.k} onClick={() => setPref(p.k)} style={chip(pref === p.k)}>{tr(p.n)}</button>)}
+        {PREFS.map((p) => <button key={p.k} aria-pressed={prefs.includes(p.k)} onClick={() => toggle(p.k)} style={chip(prefs.includes(p.k))}>{tr(p.n)}</button>)}
       </div>
-      <div style={{ fontSize: 12, color: C.muted, margin: '8px 0' }}>{tr(PREFS.find((p) => p.k === pref)!.d)}</div>
+      <div style={{ fontSize: 12, color: C.muted, margin: '8px 0' }}>{prefs.length > 1 ? L(`已选 ${prefs.length} 项偏好，按比例加权混合`, `揀咗 ${prefs.length} 個喜好，按比例混合`, `${prefs.length} preferences blended by weight`) : tr(PREFS.find((p) => p.k === prefs[0])!.d)}</div>
       {picks.length ? (
         <>
           {compact ? <div style={{ fontSize: 13, marginBottom: 8, lineHeight: 1.5 }}>{picks.map(pname).join(' → ')}</div> : (

@@ -25,7 +25,7 @@ export const targetOf = (t: Trip) => {
   return t.phase === 'go' || (t.left < 0 && t.free <= 0) || !next ? t.gate : next.place.id;
 };
 
-export const Home = ({ t, goMap, openOrder, openHelp, arrive }: { t: Trip; goMap: () => void; openOrder: () => void; openHelp: () => void; arrive: (id: string) => void }) => {
+export const Home = ({ t, goMap, openOrder, openHelp, arrive, goExplore }: { t: Trip; goMap: () => void; openOrder: () => void; openHelp: () => void; arrive: (id: string) => void; goExplore?: () => void }) => {
   useLang();
   const next = t.tl.stops[0];
   const urgent = t.phase === 'go' || (t.left < 0 && t.free <= 0);
@@ -50,6 +50,17 @@ export const Home = ({ t, goMap, openOrder, openHelp, arrive }: { t: Trip; goMap
 
   return (
     <div style={{ padding: '12px 14px 18px', display: 'grid', gap: 12 }}>
+      {/* 安全时间开始、还没有安排时：把推荐放在最上面，避免旅客以为只能去登机口 */}
+      {t.phase === 'free' && !t.atSec && t.left >= 20 && t.plan.every((p) => p.done) && (
+        <section style={{ border: `2px solid ${C.jade}`, borderRadius: 18, background: C.jadeSoft, padding: 6, display: 'grid', gap: 6 }}>
+          <div style={{ padding: '6px 8px 2px' }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.jade }}>{L(`你有 ${dur(t.left)} 可以自由安排`, `你有 ${dur(t.left)} 可以自由安排`, `You have ${dur(t.left)} to spare`)}</div>
+            <div style={{ fontSize: 13, color: C.ink, marginTop: 2, lineHeight: 1.5 }}>{L('现在不用急着去登机口。选偏好一键排好顺路活动，或者自己去探索挑选，出发时间到了我会提醒你。', '而家唔使急住去閘口。揀喜好一撳排好順路活動，或者自己去探索揀，夠鐘出發我會提你。', 'No need to head to the gate yet. Pick preferences for a ready-made route, or browse yourself. I will tell you when to leave.')}</div>
+          </div>
+          <RouteGen t={t} />
+          {goExplore && <button style={{ ...btn('ghost'), width: '100%', background: C.paper }} onClick={goExplore}>{L('去探索自己挑', '去探索自己揀', 'Browse and pick myself')}</button>}
+        </section>
+      )}
       {t.change && (
         <section role="status" style={{ background: C.paper, border: `1.5px solid ${t.change.after < t.change.before ? C.gold : C.jade}`, borderRadius: 14, padding: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -114,7 +125,7 @@ export const Home = ({ t, goMap, openOrder, openHelp, arrive }: { t: Trip; goMap
         </div>
       )}
 
-      {t.loungeOffer && (
+      {t.loungeOffer && t.phase === 'free' && (
         <section role="alert" style={{ background: C.goldSoft, border: `1px solid ${C.gold}`, borderRadius: 14, padding: 12 }}>
           <div style={{ fontWeight: 700, color: C.gold, fontSize: 14 }}>{L('The Pier 当前满员', 'The Pier 而家爆滿', 'The Pier is full')}</div>
           <div style={{ fontSize: 13, margin: '4px 0 10px', lineHeight: 1.5 }}>{L('可以改去 L7 Plaza Premium Lounge（现有空位，付费入内）。接受分流，国泰补偿 200 Asia Miles。', '可以轉去 L7 Plaza Premium Lounge（有位，要俾錢入）。肯轉嘅話，國泰補 200 Asia Miles 俾你。', 'Try Plaza Premium Lounge on L7 (seats available, paid entry). Accept and Cathay adds 200 Asia Miles.')}</div>
@@ -226,7 +237,6 @@ export const Home = ({ t, goMap, openOrder, openHelp, arrive }: { t: Trip; goMap
         {urgent && <div style={{ marginTop: 10, fontSize: 13, color: C.red, fontWeight: 600 }}>{L('可支配时间已归零，请优先前往登机口。', '冇時間喇，請即刻去閘口。', 'No free time left. Head to the gate now.')}</div>}
       </section>
 
-      {!t.genUsed && t.phase === 'free' && t.left >= 20 && <RouteGen t={t} compact onClose={() => t.setGenUsed(true)} />}
 
       <PlanList t={t} />
       <div style={{ display: 'flex', gap: 8 }}>

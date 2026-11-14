@@ -34,6 +34,21 @@ Cathay Hackathon 2026。帮助在香港国际机场（HKG）转机的旅客，�
 
 OAG 返回的实时登机口会自动更新导航目标和步行时间。正式上线将接入 HKIA 室内地图服务，换成精确坐标。
 
+
+## Vera 助手
+- **规则优先 + LLM 补充**：下单、导航、路线等由规则回答（`src/trip/veraBrain.ts`），规则答不了的问题交给后端 `POST /api/chat`，再转发给阿里云百炼 **Qwen**（OpenAI 兼容接口，`.env` 里改 `LLM_URL / LLM_KEY / LLM_MODEL` 即可换服务商）。LLM 失败时自动退回规则回复。
+- **准时登机优先**：只有已过转机安检、未进入返回缓冲、剩余 20 分钟以上时才推荐活动；其他时候不推荐、不弹推荐泡泡，只提醒出发时间和登机口。后端的系统提示词也写明这一原则。
+- **语音输入**：浏览器自带的 Web Speech API（Chrome / Safari，需 https 或 localhost），不需要额外 Key。
+
+## 其他功能
+- 登录会员前需勾选同意《隐私条款》（`src/trip/privacy.tsx`，简体 / 繁体 / 英文）
+- 偏好可多选（均衡、美食、购物、观光、休息），按权重混合生成路线，最多排满八成并留 10 分钟余量
+- 点「已到登机口」时如仍有较多时间会先确认，防止误触
+
+## 一键启动 / 部署
+- Mac：双击 `启动.command`，或在根目录运行 `npm start`（打包前端并由后端一起提供），打开 http://localhost:8787
+- 云端：根目录有 `Dockerfile`，可部署到 Google Cloud Run / AWS App Runner，Key 以环境变量填在平台上
+
 ## 运行
 需要 Node.js 18 以上。
 
@@ -58,6 +73,7 @@ npm run dev              # 打开 http://localhost:5173
 | `GET /api/flight?no=CX715&date=YYYY-MM-DD` | 单个航班实时状态 |
 | `GET /api/board?type=arr\|dep&date=YYYY-MM-DD` | 国泰在香港的到港 / 离港航班 |
 | `GET /api/transfer?from=HGH&to=SIN&date=YYYY-MM-DD` | 衔接航班（Connections API），结果会缓存 |
+| `POST /api/chat` | Vera 的 LLM 回答（Qwen） |
 | `GET /api/health` | 检查各 API 是否已配置 |
 
 ## 额度

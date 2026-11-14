@@ -10,10 +10,10 @@ Features: 一键生成顺路路线（均衡/美食/购物/观光/休息，填满
 所有可调参数（步速、舱位、会员等级、时间流速）只在可拖动的现场事件控制台里。
 */
 import React, { useEffect, useRef, useState } from 'react';
-import { FLIGHT, pname } from './trip/data';
+import { FLIGHT, pname, dur } from './trip/data';
 import { L, Lang, setLang, useLang } from './trip/i18n';
 import { useTrip } from './trip/store';
-import { C, Icon, sans } from './trip/ui';
+import { C, Icon, sans, Sheet, btn } from './trip/ui';
 import { Home } from './trip/Home';
 import { Explore } from './trip/Explore';
 import { MapView } from './trip/NavView';
@@ -29,6 +29,7 @@ type SheetName = null | 'order' | 'picker' | 'help' | 'member' | 'vera';
 
 export const App = () => {
   const t = useTrip();
+  const [gateAsk, setGateAsk] = useState(false);
   const lang = useLang();
   const [tab, setTab] = useState<Tab>('home');
   const [sheet, setSheet] = useState<SheetName>(null);
@@ -46,10 +47,14 @@ export const App = () => {
   const openVera = (init: string | null, voice = false) => { setVeraInit(init); setVeraVoice(voice); setHint(null); setSheet('vera'); };
   const goHome = () => { setSheet(null); setTab('home'); };
 
-  const arrive = (id: string) => {
+  const arrive = (id: string, force = false) => {
     t.setNav({ key: '', leg: 0, prog: 0 });
     if (id === 'sec') { t.setClock((c) => c + t.pre); t.setHere('sec'); t.note(L('已过转机安检', '過咗轉機安檢', 'Cleared transfer security')); setTab('home'); return; }
-    if (id === t.gate) { t.setHere(t.gate); t.setBoarded(true); setTab('home'); return; }
+    if (id === t.gate) {
+      // 防误触：离登机还早时先确认，避免时间还很多就显示已登机
+      if (!force && t.phase === 'free' && t.free > 20) { setGateAsk(true); return; }
+      setGateAsk(false); t.setHere(t.gate); t.setBoarded(true); setTab('home'); return;
+    }
     const stop = t.tl.stops.find((s) => s.place.id === id);
     if (stop) {
       t.setPlan((p) => p.map((x) => (x.uid === stop.item.uid ? { ...x, done: true, doneAt: stop.end, used: stop.stay } : x)));
@@ -91,7 +96,7 @@ export const App = () => {
 
         <main ref={scroller} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative' }}>
           {!entered && <Entry onDone={() => { setEntered(true); setTab('home'); }} />}
-          {entered && tab === 'home' && <Home t={t} goMap={() => setTab('map')} openOrder={() => openOrder()} openHelp={() => setSheet('help')} arrive={arrive} />}
+          {entered && tab === 'home' && <Home t={t} goExplore={() => setTab('explore')} goMap={() => setTab('map')} openOrder={() => openOrder()} openHelp={() => setSheet('help')} arrive={arrive} />}
           {entered && tab === 'explore' && <Explore t={t} openOrder={openOrder} goHome={goHome} />}
           {entered && tab === 'map' && <MapView t={t} onArrive={arrive} />}
         </main>
@@ -121,6 +126,15 @@ export const App = () => {
         {sheet === 'help' && <HelpSheet onClose={() => setSheet(null)} />}
         {sheet === 'vera' && <VeraSheet t={t} initial={veraInit} voice={veraVoice} onClose={() => setSheet(null)} openOrder={openOrder} goMap={() => { setSheet(null); setTab('map'); }} openHelp={() => setSheet('help')} openMember={() => setSheet('member')} />}
         {sheet === 'member' && <MemberSheet t={t} onClose={() => setSheet(null)} />}
+        {gateAsk && (
+          <Sheet title={L('确定已到登机口？', '確定到咗閘口？', 'At your gate already?')} onClose={() => setGateAsk(false)}>
+            <div style={{ fontSize: 14, lineHeight: 1.6 }}>{L(`离开始登机还有 ${dur(t.boardTime - t.clock)}，你还有 ${dur(Math.max(0, t.free))} 可以自由安排。确认后转机指引会结束，并显示已登机。`, `離開始登機仲有 ${dur(t.boardTime - t.clock)}，你仲有 ${dur(Math.max(0, t.free))} 可以自由安排。確認之後轉機指引會結束，顯示已登機。`, `Boarding starts in ${dur(t.boardTime - t.clock)} and you still have ${dur(Math.max(0, t.free))} free. Confirming ends the guide and marks you as boarded.`)}</div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+              <button style={{ ...btn(), flex: 1 }} onClick={() => setGateAsk(false)}>{L('还没到，继续安排', '未到，繼續安排', 'Not yet')}</button>
+              <button style={{ ...btn('ghost'), flex: 1 }} onClick={() => arrive(t.gate, true)}>{L('是的，已到登机口', '係，到咗閘口', 'Yes, at the gate')}</button>
+            </div>
+          </Sheet>
+        )}
       </div>
       {entered && <EventsPanel t={t} onFired={goHome} onReset={() => { setEntered(false); setTab('home'); setSheet(null); }} />}
     </div>

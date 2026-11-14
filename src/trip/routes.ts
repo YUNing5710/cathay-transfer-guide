@@ -28,9 +28,14 @@ const shown: Record<string, number> = {};
  * - Cathay partners are preferred, each place's suggestion count is balanced across runs;
  * - at most one sit-down meal and one lounge; never two meals or two drink shops next to each other on the walk.
  */
-export function generate(t: Trip, pref: Pref, seed = 0): Place[] {
-  const target = Math.floor(Math.max(0, t.left) * 0.8);
-  if (target < 15 || !t.canAdd) return [];
+export function generate(t: Trip, pref: Pref | Pref[], seed = 0): Place[] {
+  // 最多排满可支配时间的八成，且至少留 10 分钟余量
+  const target = Math.floor(Math.min(Math.max(0, t.left) * 0.8, t.left - 10));
+  // 准时登机优先：只在安全时间内推荐；安检前、返回缓冲及之后一律不推荐
+  if (target < 15 || !t.canAdd || t.atSec || t.phase !== 'free') return [];
+  // 偏好可多选：各偏好的权重取平均，按比例混合
+  const prefs: Pref[] = Array.isArray(pref) ? (pref.length ? pref : ['mix']) : [pref];
+  const wOf = (g: string) => prefs.reduce((a, k) => a + (W[k][g] ?? 0), 0) / prefs.length;
   const open = t.plan.filter((p) => !p.done);
   const base = t.timeline(open);
   const baseEnd = base.end + base.toGate;
@@ -62,7 +67,7 @@ export function generate(t: Trip, pref: Pref, seed = 0): Place[] {
       if (clash(next)) continue;
       const c = cost(next) - spent;
       if (spent + c > target) continue;
-      const fit = Math.max(...p.tags.map((g) => W[pref][g] ?? 0));
+      const fit = Math.max(...p.tags.map((g) => wOf(g)));
       const variety = cats.has(p.cat) ? 0.55 : 1;
       const partner = p.cat === '餐饮' ? (p.partner ? 1.6 : 0.7) : p.partner ? 1.2 : 1;
       const balance = 1 / (1 + (shown[p.id] ?? 0) * 0.6);

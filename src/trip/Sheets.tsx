@@ -1,3 +1,4 @@
+import { PrivacyConsent } from './privacy';
 import React, { useEffect, useState } from 'react';
 import { dur, floorLabel, PLACES, pickupEstimate, pname, waitMin } from './data';
 import { L, useLang } from './i18n';
@@ -129,6 +130,7 @@ export const HelpSheet = ({ onClose }: { onClose: () => void }) => {
 export const MemberSheet = ({ t, onClose }: { t: Trip; onClose: () => void }) => {
   useLang();
   const [stage, setStage] = useState<'pitch' | 'loading' | 'ok'>(t.member ? 'ok' : 'pitch');
+  const [agree, setAgree] = useState(false);
   useEffect(() => {
     if (stage !== 'loading') return;
     const id = setTimeout(() => { t.login(); setStage('ok'); }, 700);
@@ -141,7 +143,8 @@ export const MemberSheet = ({ t, onClose }: { t: Trip; onClose: () => void }) =>
         <div style={{ display: 'grid', gap: 12 }}>
           <div style={{ fontSize: 14, lineHeight: 1.6 }}>{L('登录后，合作商户消费、打卡和分流补偿都能累积 Asia Miles，并按会员等级解锁可进入的贵宾室。', '登入之後，合作商戶消費、打卡同分流補償都儲到 Asia Miles，仲會按會員級別解鎖貴賓室。', 'Log in to earn Asia Miles on partner spend, check-ins and diversions, and unlock lounges for your tier.')}</div>
           {t.pending > 0 && <div style={{ background: C.goldSoft, color: C.gold, borderRadius: 10, padding: '8px 10px', fontSize: 13, fontWeight: 600 }}>{L(`本次中转已累积 ${t.pending} Asia Miles，登录即可领取`, `今次轉機儲咗 ${t.pending} Asia Miles，登入就攞得`, `${t.pending} Asia Miles waiting, log in to claim`)}</div>}
-          <button style={{ ...btn(), width: '100%' }} onClick={() => setStage('loading')}>{L('立即登录', '即刻登入', 'Log in now')}</button>
+          <PrivacyConsent agree={agree} setAgree={setAgree} />
+          <button disabled={!agree} style={{ ...btn(), width: '100%', opacity: agree ? 1 : 0.5, cursor: agree ? 'pointer' : 'not-allowed' }} onClick={() => { if (agree) setStage('loading'); }}>{L('立即登录', '即刻登入', 'Log in now')}</button>
           <button style={{ ...btn('ghost'), width: '100%' }} onClick={onClose}>{L('稍后再说', '遲啲先', 'Later')}</button>
         </div>
       )}
