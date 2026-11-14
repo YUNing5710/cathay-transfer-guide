@@ -49,14 +49,15 @@ export const App = () => {
 
   const arrive = (id: string, force = false) => {
     t.setNav({ key: '', leg: 0, prog: 0 });
-    if (id === 'sec') { t.setClock((c) => c + t.pre); t.setHere('sec'); t.note(L('已过转机安检', '過咗轉機安檢', 'Cleared transfer security')); setTab('home'); return; }
+    if (id === 'sec') { t.calibrate('sec', Math.max(0, t.pre - t.walkSec)); t.setClock((c) => c + t.pre); t.setHere('sec'); t.note(L('已过转机安检', '過咗轉機安檢', 'Cleared transfer security')); setTab('home'); return; }
     if (id === t.gate) {
       // 防误触：离登机还早时先确认，避免时间还很多就显示已登机
       if (!force && t.phase === 'free' && t.free > 20) { setGateAsk(true); return; }
-      setGateAsk(false); t.setHere(t.gate); t.setBoarded(true); setTab('home'); return;
+      setGateAsk(false); t.calibrate(t.gate); t.setHere(t.gate); t.setBoarded(true); setTab('home'); return;
     }
     const stop = t.tl.stops.find((s) => s.place.id === id);
     if (stop) {
+      t.calibrate(id, stop.stay);
       t.setPlan((p) => p.map((x) => (x.uid === stop.item.uid ? { ...x, done: true, doneAt: stop.end, used: stop.stay } : x)));
       t.setClock(Math.max(t.clock, stop.end));
       // Miles are credited only on completion; partner stops carry their miles on the plan item.

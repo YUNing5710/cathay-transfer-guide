@@ -34,7 +34,7 @@ export const MapView = ({ t, onArrive }: { t: Trip; onArrive: (id: string) => vo
       if (!Lg) { setRunning(false); return; }
       const step = Math.max(0.04, 18 / Math.max(15, Lg.meters));
       if (prog + step < 1) { t.setNav({ key, leg, prog: prog + step }); return; }
-      if (leg + 1 >= r.legs.length) { setRunning(false); t.setNav({ key, leg, prog: 1 }); setTimeout(() => onArrive(to), 300); return; }
+      if (leg + 1 >= r.legs.length) { setRunning(false); t.setNav({ key, leg, prog: 1 }); setTimeout(() => { t.markSim(); onArrive(to); }, 300); return; }
       setView(r.legs[leg + 1].floor);
       t.setNav({ key, leg: leg + 1, prog: 0 });
     }, 180);

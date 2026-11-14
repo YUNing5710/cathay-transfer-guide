@@ -20,6 +20,11 @@ export function useTrip() {
   const [kitchens, setKitchens] = useState<Record<string, Kitchen>>(initKitchens);
   const [kitchenAt, setKitchenAt] = useState(Date.now());
   const [pace, setPace] = useState(65); // metres per minute, deliberately slow
+  // ---- 步速校准：用旅客实际走路花的时间（真实时钟）修正步速 ----
+  // 只会变慢、不会快于默认 65 米/分，保证预估时间只会偏长；演示里的模拟导航不计入
+  const walkFrom = useRef<{ at: number; from: string }>({ at: Date.now(), from: 'arr' });
+  const simRef = useRef(false);
+  const [paceTuned, setPaceTuned] = useState(false);
   const [secJitter, setSecJitter] = useState(0);
   const [secSurge, setSecSurge] = useState(0);
   useEffect(() => {
@@ -81,6 +86,22 @@ export function useTrip() {
   const dep = FLIGHT.dep + delay;
   const boardBuffer = BUFFER + boardEarly;
   const walkMin = (from: string, to: string) => Math.ceil(route(from, to).meters / pace);
+  /** 到达一个地点时调用：stay = 在那里预计停留的分钟数（要从耗时里扣掉） */
+  const calibrate = (toId: string, stay = 0) => {
+    const w = walkFrom.current, sim = simRef.current;
+    walkFrom.current = { at: Date.now(), from: toId }; simRef.current = false;
+    if (sim || w.from === toId) return;
+    const meters = route(w.from, toId).meters;
+    const walk = (Date.now() - w.at) / 60000 - stay;   // 真实分钟
+    if (meters < 80 || walk < 1 || walk > 45) return;   // 太短或中途停留太久，不可靠
+    const measured = meters / walk;
+    const next = Math.round(Math.max(35, Math.min(65, pace * 0.6 + measured * 0.4)));
+    if (Math.abs(next - pace) >= 3) {
+      setPace(next); setPaceTuned(true);
+      note(L(`已按你的实际步速（约 ${next} 米/分）重新估算步行时间`, `已經按你實際行路速度（大約每分鐘 ${next} 米）重新計行路時間`, `Walking times updated to your actual pace (~${next} m/min)`), 'warn');
+    }
+  };
+  const markSim = () => { simRef.current = true; };
   const sec = { people: Math.max(0, secQueue(clock).people + secJitter + secSurge), lanes: 4 };
   const secWait = Math.ceil((sec.people * 20) / sec.lanes / 60) + 2;
   const atSec = here === 'arr';
@@ -191,7 +212,7 @@ export function useTrip() {
   });
 
   return {
-    live, online,
+    live, online, calibrate, markSim, paceTuned,
     readyOrders, soonOrders, pre, secWait, walkSec, milesLog, pace, setPace, sec, secSurge, setSecSurge,
     clock, setClock, kitchens, setKitchens, kitchenAt, delay, setDelay, boardEarly, setBoardEarly, boardBuffer,
     gate, setGate, member, miles, pending, plan, setPlan, here, setHere, nav, setNav,
@@ -221,7 +242,7 @@ export function useTrip() {
       return dropped;
     },
     reset: () => {
-      setPace(65); setSpeed(0); setBag('ok'); setChange(null); setUndo(null); setMilesLog([]); setSecSurge(0);
+      setPace(65); setPaceTuned(false); walkFrom.current = { at: Date.now(), from: 'arr' }; setSpeed(0); setBag('ok'); setChange(null); setUndo(null); setMilesLog([]); setSecSurge(0);
       setClock(START_CLOCK); setDelay(0); setBoardEarly(0); setGate('g23'); setMember(null); setMiles(0); setPending(0);
       setPlan([]); notified.current.clear(); setHere('arr'); setLoungeFull(false); setLoungeOffer(false); setBoarded(false);
       setShowerPeak(false); setShowerTicket({}); setCabin('Y'); setNav({ key: '', leg: 0, prog: 0 }); setKitchens(initKitchens()); setGenUsed(false);

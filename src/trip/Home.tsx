@@ -212,6 +212,7 @@ export const Home = ({ t, goMap, openOrder, openHelp, arrive, goExplore }: { t: 
           <div style={{ fontSize: 12, background: C.bg, borderRadius: 10, padding: 10, marginTop: 6, lineHeight: 1.6 }}>
             {L(`起飞 ${hm(t.dep)}，${hm(t.boardTime)} 开始登机，这是最后期限；再往前留 30 分钟返回缓冲。`, `${hm(t.dep)} 起飛，${hm(t.boardTime)} 開始登機，呢個係死線；再預早 30 分鐘返程緩衝。`, `Departs ${hm(t.dep)}, boarding ${hm(t.boardTime)} is the hard deadline, with a 30-min return buffer before it.`)}<br />
             {t.pre ? <>{L(`转机安检：步行 ${t.walkSec} 分 + 排队约 ${t.secWait} 分（前方约 ${t.sec.people} 人）+ 过检 6 分 + 上 L6 3 分 = ${t.pre} 分。`, `轉機安檢：行 ${t.walkSec} 分鐘 + 排隊大約 ${t.secWait} 分鐘（前面大約 ${t.sec.people} 人）+ 過檢 6 分鐘 + 上 L6 3 分鐘 = ${t.pre} 分鐘。`, `Security: walk ${t.walkSec} + queue ~${t.secWait} (~${t.sec.people} ahead) + screening 6 + up to L6 3 = ${t.pre} min.`)}<br /></> : null}
+            {L(`步速 ${t.pace} 米/分${t.paceTuned ? '（已按你的实际步速校准）' : '（默认偏慢估算）'}。`, `行路速度每分鐘 ${t.pace} 米${t.paceTuned ? '（已經按你實際速度校準）' : '（預設計慢啲）'}。`, `Pace ${t.pace} m/min${t.paceTuned ? ' (calibrated to you)' : ' (cautious default)'}. `)}
             {L('每站预估占用 = 从上一站走过去 + 在这里的时间（含出餐、淋浴排队），最后一站再走回登机口。排队一律按偏长估算。', '每個站預計用嘅時間 = 由上個站行過去 + 喺度嘅時間（包埋等餐、排隊沖涼），最後一站再行返閘口。排隊時間一律計長啲。', 'Each stop = walk from the previous stop + time there (incl. food or shower queues); then the walk back to the gate. Queues are estimated on the long side.')}
           </div>
         )}
