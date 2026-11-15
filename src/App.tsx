@@ -134,11 +134,11 @@ export const App = () => {
         {sheet === 'vera' && <VeraSheet t={t} initial={veraInit} voice={veraVoice} onClose={() => setSheet(null)} openOrder={openOrder} goMap={() => { setSheet(null); setTab('map'); }} openHelp={() => setSheet('help')} openMember={() => setSheet('member')} />}
         {sheet === 'member' && <MemberSheet t={t} onClose={() => setSheet(null)} />}
         {gateAsk && (
-          <Sheet title={L('确定已到登机口？', '確定到咗閘口？', 'At your gate already?')} onClose={() => setGateAsk(false)}>
-            <div style={{ fontSize: T.base, lineHeight: 1.6, color: C.muted }}>{L(`还有 ${dur(Math.max(0, t.free))} 自由时间，确认后指引将结束。`, `仲有 ${dur(Math.max(0, t.free))} 自由時間，確認之後指引會結束。`, `${dur(Math.max(0, t.free))} still free. Confirming ends the guide.`)}</div>
+          <Sheet title={L('还有不少时间', '仲有唔少時間', 'Plenty of time left')} onClose={() => setGateAsk(false)}>
+            <div style={{ fontSize: T.base, lineHeight: 1.6, color: C.muted }}>{L(`离登机还有 ${dur(Math.max(0, t.free))} 可自由支配，要结束指引，还是再逛逛？`, `離登機仲有 ${dur(Math.max(0, t.free))} 自由時間，結束指引定係再行吓？`, `${dur(Math.max(0, t.free))} free before boarding. End the guide or keep exploring?`)}</div>
             <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-              <button style={{ ...btn('ghost'), flex: 1 }} onClick={() => setGateAsk(false)}>{L('还没', '未', 'Not yet')}</button>
-              <button style={{ ...btn(), flex: 1 }} onClick={() => arrive(t.gate, true)}>{L('已到登机口', '到咗閘口', 'At the gate')}</button>
+              <button style={{ ...btn('ghost'), flex: 1 }} onClick={() => { setGateAsk(false); setTab('explore'); }}>{L('继续探索', '繼續探索', 'Keep exploring')}</button>
+              <button style={{ ...btn(), flex: 1 }} onClick={() => arrive(t.gate, true)}>{L('结束指引', '結束指引', 'End guide')}</button>
             </div>
           </Sheet>
         )}

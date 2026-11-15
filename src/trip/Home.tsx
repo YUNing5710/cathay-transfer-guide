@@ -62,7 +62,7 @@ export const Home = ({ t, goMap, openOrder, openHelp, arrive, goExplore }: { t: 
       <section style={{ background: C.paper, color: C.ink, borderRadius: 22, padding: '10px 16px 14px', border: `1px solid ${C.line}`, boxShadow: '0 8px 24px rgba(0,60,58,.07)', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ display: 'grid', justifyItems: 'center', textAlign: 'center', gap: 2 }}>
           <div style={{ position: 'relative', display: 'grid', placeItems: 'center', width: 150, height: 150 }}>
-            <div aria-hidden style={{ position: 'absolute', inset: 14, borderRadius: '50%', border: `1.5px solid ${C.jadeSoft}`, background: 'radial-gradient(closest-side, #F4FAF8, #fff)' }} />
+            
             <div style={{ position: 'relative', filter: 'drop-shadow(0 8px 10px rgba(0,60,58,.22))' }}><Arrow3D angle={angle} size={136} mode={mode} tilt={compass.state === 'on' ? compass.tilt : 58} /></div>
           </div>
           <div style={{ minWidth: 0, width: '100%' }}>
