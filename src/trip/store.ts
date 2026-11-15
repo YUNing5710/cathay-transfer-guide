@@ -3,6 +3,8 @@ import { BUFFER, FLIGHT, Kitchen, PLACES, Place, START_CLOCK, ensureGate, pickup
 import { useLiveFlight } from './live';
 import { L } from './i18n';
 
+/** ok = bags checked through to the final stop; immig = bags end in Hong Kong, so reclaim, enter, check in again. */
+export type Bag = 'ok' | 'immig';
 export interface PlanItem { uid: number; id: string; done: boolean; readyAt?: number; orderText?: string; doneAt?: number; used?: number; code?: string; miles?: number }
 /** Return buffer before boarding: from here on no new tasks; when it ends, everything stops. */
 export const RETURN_BUFFER = 30;
@@ -55,7 +57,7 @@ export function useTrip() {
   const [boarded, setBoarded] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [speed, setSpeed] = useState(0);
-  const [bag, setBag] = useState<'ok' | 'unknown'>('ok');
+  const [bag, setBag] = useState<Bag>('ok');
   const [change, setChange] = useState<null | { title: string; before: number; after: number }>(null);
   const [undo, setUndo] = useState<PlanItem | null>(null);
   const [nav, setNav] = useState({ key: '', leg: 0, prog: 0 });
@@ -65,10 +67,11 @@ export function useTrip() {
     return () => clearInterval(id);
   }, [speed, boarded]);
 
+  /** Toasts stack at most two deep, newest on top; repeats replace instead of piling up. */
   const note = (text: string, tone: Note['tone'] = 'ok') => {
     const id = Date.now() + Math.random();
-    setNotes((n) => [...n, { id, text, tone }]);
-    setTimeout(() => setNotes((n) => n.filter((x) => x.id !== id)), 3200);
+    setNotes((n) => [...n.filter((x) => x.text !== text), { id, text, tone }].slice(-2));
+    setTimeout(() => setNotes((n) => n.filter((x) => x.id !== id)), 2600);
   };
 
   const notified = useRef<Set<number>>(new Set());
@@ -135,11 +138,18 @@ export function useTrip() {
   useEffect(() => () => { const g = gpsRef.current; if (g.id !== null) navigator.geolocation?.clearWatch(g.id); }, []);
   const sec = { people: Math.max(0, secQueue(clock).people + secJitter + secSurge), lanes: 4 };
   const secWait = Math.ceil((sec.people * 20) / sec.lanes / 60) + 2;
-  const atSec = here === 'arr';
-  const walkSec = walkMin('arr', 'sec');
-  /** Security: walk to it + queue + screening 6 + escalator to L6 3. */
-  const pre = atSec ? walkSec + secWait + 6 + 3 : 0;
-  const origin = atSec ? 'sec' : here;
+  /** Steps before free time starts. Through-checked: transfer security only. Otherwise: immigration, reclaim, check in, departure security. */
+  const steps = bag === 'ok' ? ['sec'] : ['immig', 'belt', 'checkin', 'dsec'];
+  const posIdx = here === 'arr' ? 0 : steps.includes(here) ? steps.indexOf(here) + 1 : steps.length;
+  const atSec = posIdx < steps.length;
+  const preTarget = atSec ? steps[posIdx] : here;
+  const preFrom = posIdx === 0 ? 'arr' : steps[posIdx - 1];
+  const stepStay = (id: string) => (id === 'sec' ? secWait + 6 + 3 : id === 'immig' ? 15 : id === 'belt' ? 15 : id === 'checkin' ? 12 : id === 'dsec' ? secWait + 6 : 0);
+  const stepCost = (from: string, id: string) => walkMin(from, id) + stepStay(id);
+  const walkSec = atSec ? walkMin(preFrom, preTarget) : 0;
+  const stepNow = atSec ? stepCost(preFrom, preTarget) : 0;
+  const pre = atSec ? steps.slice(posIdx).reduce((a, id, i, arr) => a + stepCost(i === 0 ? preFrom : arr[i - 1], id), 0) : 0;
+  const origin = atSec ? steps[steps.length - 1] : here;
   const t0 = clock + pre;
 
   /** Minutes spent at a stop once you are there (kitchen wait, shower queue included, conservative). */
@@ -208,11 +218,12 @@ export function useTrip() {
   const visible = (p: Place) => canEnter(p);
 
   const [milesLog, setMilesLog] = useState<MilesLog[]>([]);
-  const earn = (n: number, why: string) => {
+  /** Credit miles. `silent` lets the caller fold the miles into its own single toast. */
+  const earn = (n: number, why: string, silent = false) => {
     if (n <= 0) return;
     setMilesLog((l) => [...l, { n, why }]);
-    if (member) { setMiles((m) => m + n); note(`+${n} Asia Miles · ${why}`); }
-    else { setPending((p) => p + n); note(L(`登录后可领取 ${n} Asia Miles`, `登入後可以攞 ${n} Asia Miles`, `Log in to claim ${n} Asia Miles`), 'warn'); }
+    if (member) { setMiles((m) => m + n); if (!silent) note(`+${n} Asia Miles · ${why}`); }
+    else { setPending((p) => p + n); if (!silent) note(L(`登录后可领取 ${n} Asia Miles`, `登入後可以攞 ${n} Asia Miles`, `Log in to claim ${n} Asia Miles`), 'warn'); }
   };
   /** Miles are credited only when the task is completed (and only if logged in; otherwise held until login). */
   const add = (id: string, extra?: Partial<PlanItem>) => {
@@ -234,11 +245,11 @@ export function useTrip() {
   const { live, online } = useLiveFlight(FLIGHT.inNo, FLIGHT.outNo, (f, p) => {
     if (f.delayMin !== (p?.delayMin ?? 0)) {
       setDelay(f.delayMin);
-      if (p && f.delayMin > 0) note(`${f.no} 延误 ${f.delayMin} 分钟 · 可支配时间已重算`, 'warn');
+      if (p && f.delayMin > 0) note(L(`${f.no} 延误 ${f.delayMin} 分钟 · 时间已重算`, `${f.no} 延誤 ${f.delayMin} 分鐘 · 時間已重新計`, `${f.no} delayed ${f.delayMin} min · times updated`), 'warn');
     }
     if (f.depGate) {
       const id = ensureGate(f.depGate);
-      if (id) { const changed = p ? p.depGate !== f.depGate : gate !== id; setGate(id); if (changed) note(`${f.no} 实时登机口为 ${f.depGate}（以 OAG 实时数据为准）· 路线已重算`, 'warn'); }
+      if (id) { const changed = p ? p.depGate !== f.depGate : gate !== id; setGate(id); if (changed) note(L(`登机口更新为 ${f.depGate} · 路线已重算`, `閘口改咗做 ${f.depGate} · 路線已重新計`, `Gate is now ${f.depGate} · route updated`), 'warn'); }
     }
   });
 
@@ -249,7 +260,7 @@ export function useTrip() {
     gate, setGate, member, miles, pending, plan, setPlan, here, setHere, nav, setNav,
     loungeFull, setLoungeFull, loungeOffer, setLoungeOffer, showerPeak, setShowerPeak, showerTicket, setShowerTicket,
     boarded, setBoarded, notes, note, dep, walkGate, free, left, planned, gateName, earn, tl, t0, costOf, costList, timeline,
-    cabin, setCabin, loginTier, setLoginTier, canEnter, visible, atSec, genUsed, setGenUsed,
+    cabin, setCabin, loginTier, setLoginTier, canEnter, visible, atSec, genUsed, setGenUsed, steps, posIdx, preTarget, preFrom, stepNow,
     boardTime, leaveBy, phase, canAdd: phase === 'free',
     login: () => { setMember({ name: '巫俏宁', tier: loginTier }); setMiles((m) => m + pending); if (pending) note(L(`已领取 ${pending} Asia Miles`, `已經攞咗 ${pending} Asia Miles`, `${pending} Asia Miles claimed`)); setPending(0); },
     logout: () => setMember(null),

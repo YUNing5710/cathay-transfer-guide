@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { dur, floorLabel, hm, placeOf, pname } from './data';
+import { dur, floorLabel, hm, nameOf, placeOf, pname } from './data';
 import { L, useLang } from './i18n';
 import { Trip } from './store';
-import { C, catIcon, Icon } from './ui';
+import { C, ease, Icon, T } from './ui';
+import { PlaceMark } from './marks';
 
 export const PlanList = ({ t }: { t: Trip }) => {
   useLang();
@@ -26,22 +27,20 @@ export const PlanList = ({ t }: { t: Trip }) => {
   return (
     <section>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '4px 2px 8px', gap: 8 }}>
-        <strong style={{ fontSize: 15 }}>{L('我的行程', '我嘅行程', 'My plan')}</strong>
+        <strong style={{ fontSize: T.md }}>{L('行程', '行程', 'Plan')}</strong>
         <span style={{ fontSize: 12, color: C.muted }}>
           {L(`${openStops.length} 项待完成`, `仲有 ${openStops.length} 項`, `${openStops.length} to go`)}
           {done.length > 0 && <button onClick={() => setShowDone(!showDone)} style={{ marginLeft: 8, border: 'none', background: 'none', color: C.jade, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}>{showDone ? L('隐藏已完成', '收埋做完嘅', 'Hide done') : L(`显示已完成 ${done.length} 项`, `睇返做完嘅 ${done.length} 項`, `Show ${done.length} done`)}</button>}
         </span>
       </div>
       <div style={{ display: 'grid', gap: 8 }}>
-        {t.atSec && (
-          <Row icon="info" title={L('转机安检', '轉機安檢', 'Transfer security')} lock
-            sub={t.bag === 'ok'
-              ? L(`行李已直挂，无需提取 · 预估占用 ${dur(t.pre)}（含排队约 ${t.secWait} 分）`, `行李已經直掛，唔使攞 · 預計用 ${dur(t.pre)}（排隊大約 ${t.secWait} 分鐘）`, `Bags checked through · est. ${dur(t.pre)} incl. ~${t.secWait} min queue`)
-              : L(`行李状态待确认 · 预估占用 ${dur(t.pre)}`, `行李未確認 · 預計用 ${dur(t.pre)}`, `Baggage unconfirmed · est. ${dur(t.pre)}`)} />
-        )}
+        {t.atSec && t.steps.slice(t.posIdx).map((id, i) => (
+          <Row key={id} mark={id} title={nameOf(id)} lock active={i === 0}
+            sub={i === 0 ? L(`当前 · 约 ${t.stepNow} 分`, `而家 · 大約 ${t.stepNow} 分鐘`, `Now · ~${t.stepNow} min`) : L('之后', '跟住', 'Then')} />
+        ))}
         {showDone && done.map((p) => {
           const pl = placeOf(p.id);
-          return <Row key={p.uid} icon="check" title={`${L('已完成', '做完', 'Done')} · ${pl ? pname(pl) : ''}`} sub={L(`停留 ${p.used ?? 0} 分`, `逗留 ${p.used ?? 0} 分鐘`, `Stayed ${p.used ?? 0} min`)} faded />;
+          return <Row key={p.uid} mark={p.id} title={pl ? pname(pl) : ''} sub={L(`已完成 · ${p.used ?? 0} 分`, `做完 · ${p.used ?? 0} 分鐘`, `Done · ${p.used ?? 0} min`)} faded />;
         })}
         {openStops.map((s, k) => {
           // Return buffer: the current stop continues, later ones are paused (grey). After it: all paused.
@@ -50,12 +49,12 @@ export const PlanList = ({ t }: { t: Trip }) => {
           const extra = s.item.readyAt !== undefined ? (ready ? L(' · 可取餐', ' · 可以攞餐', ' · ready') : L(` · 约 ${hm(s.item.readyAt)} 可取`, ` · 大約 ${hm(s.item.readyAt)} 攞得`, ` · ready ~${hm(s.item.readyAt)}`)) : '';
           return (
             <div key={s.item.uid} data-uid={s.item.uid}
-              style={{ display: 'flex', gap: 10, alignItems: 'center', background: paused ? C.grey : C.paper, opacity: paused ? 0.6 : 1, border: `1px solid ${dragUid === s.item.uid ? C.jade : C.line}`, borderRadius: 14, padding: 10, boxShadow: dragUid === s.item.uid ? '0 8px 20px rgba(0,60,58,.18)' : 'none', transform: dragUid === s.item.uid ? 'scale(1.02)' : 'none', transition: 'transform .12s, box-shadow .12s', userSelect: 'none' }}>
-              <div style={{ width: 34, height: 34, borderRadius: 10, background: C.jadeSoft, display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon n={catIcon[s.place.cat]} s={18} c={C.jade} /></div>
+              style={{ display: 'flex', gap: 10, alignItems: 'center', background: paused ? C.grey : C.paper, opacity: paused ? 0.6 : 1, border: `1px solid ${dragUid === s.item.uid ? C.jade : C.line}`, borderRadius: 14, padding: '8px 10px', animation: `rise .3s ${ease}`, boxShadow: dragUid === s.item.uid ? '0 8px 20px rgba(0,60,58,.18)' : 'none', transform: dragUid === s.item.uid ? 'scale(1.02)' : 'none', transition: 'transform .12s, box-shadow .12s', userSelect: 'none' }}>
+              <PlaceMark id={s.place.id} cat={s.place.cat} size={36} muted={paused} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{k + 1}. {pname(s.place)}</div>
-                <div style={{ fontSize: 12, color: C.muted }}>
-                  {s.item.orderText ? `${s.item.orderText} · ` : ''}{paused ? L('已暂停，不计 Asia Miles', '暫停咗，唔計 Asia Miles', 'Paused, no Asia Miles') : <>{floorLabel(s.place.floor)} · {L(`约 ${hm(s.arrive)} 到`, `大約 ${hm(s.arrive)} 到`, `arrive ~${hm(s.arrive)}`)} · {L('预估占用', '預計用', 'est.')} {dur(s.walk + s.stay)}{extra}</>}
+                <div style={{ fontSize: T.base, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pname(s.place)}</div>
+                <div style={{ fontSize: T.xs, color: C.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {s.item.orderText ? `${s.item.orderText} · ` : ''}{paused ? L('已暂停，不计 Asia Miles', '暫停咗，唔計 Asia Miles', 'Paused, no Asia Miles') : <>{s.place.floor} · {hm(s.arrive)} · {dur(s.walk + s.stay)}{extra}</>}
                 </div>
               </div>
               {openStops.length > 1 && t.phase === 'free' && (
@@ -76,23 +75,23 @@ export const PlanList = ({ t }: { t: Trip }) => {
             </div>
           );
         })}
-        {!openStops.length && !t.atSec && (
-          <div style={{ fontSize: 13, color: C.muted, background: C.paper, borderRadius: 14, padding: 14, border: `1px dashed ${C.line}` }}>{L('还没有安排，可以到探索里挑选。', '未有安排，可以去探索揀吓。', 'Nothing planned yet. Pick places in Explore.')}</div>
-        )}
-        <Row icon="arrow" title={L(`${t.gateName} 号登机口`, `${t.gateName} 號登機閘口`, `Gate ${t.gateName}`)} lock
-          sub={L(`约 ${hm(t.tl.end + t.tl.toGate)} 到 · 步行约 ${t.walkGate} 分 · ${hm(t.dep - t.boardBuffer)} 开始登机`, `大約 ${hm(t.tl.end + t.tl.toGate)} 到 · 行大約 ${t.walkGate} 分鐘 · ${hm(t.dep - t.boardBuffer)} 開始登機`, `arrive ~${hm(t.tl.end + t.tl.toGate)} · ${t.walkGate} min walk · boarding ${hm(t.dep - t.boardBuffer)}`)} />
+        
+        <Row mark="gate" title={L(`${t.gateName} 号登机口`, `${t.gateName} 號閘口`, `Gate ${t.gateName}`)} lock
+          sub={L(`${hm(t.boardTime)} 登机 · 步行 ${t.walkGate} 分`, `${hm(t.boardTime)} 登機 · 行 ${t.walkGate} 分鐘`, `Boarding ${hm(t.boardTime)} · ${t.walkGate} min walk`)} />
       </div>
     </section>
   );
 };
 
-const Row = ({ icon, title, sub, lock, faded }: { icon: string; title: string; sub: string; lock?: boolean; faded?: boolean }) => (
-  <div style={{ display: 'flex', gap: 10, alignItems: 'center', background: lock ? C.bg : C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: 10, opacity: faded ? 0.6 : 1 }}>
-    <div style={{ width: 34, height: 34, borderRadius: 10, background: lock ? '#DDE7E5' : C.grey, display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon n={icon} s={18} c={C.jade} /></div>
+const Row = ({ mark, title, sub, lock, faded, active }: { mark: string; title: string; sub: string; lock?: boolean; faded?: boolean; active?: boolean }) => (
+  <div style={{ display: 'flex', gap: 10, alignItems: 'center', background: active ? C.jadeSoft : lock ? 'transparent' : C.paper, border: `1px ${lock && !active ? 'dashed' : 'solid'} ${active ? 'transparent' : C.line}`, borderRadius: 14, padding: '8px 10px', opacity: faded ? 0.55 : 1, transition: 'background .25s' }}>
+    {mark === 'gate'
+      ? <div style={{ width: 36, height: 36, borderRadius: 11, background: C.jade, display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon n="arrow" s={18} c="#fff" w={2.4} /></div>
+      : <PlaceMark id={mark} size={36} />}
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: 14, fontWeight: 600 }}>{title}</div>
-      <div style={{ fontSize: 12, color: C.muted }}>{sub}</div>
+      <div style={{ fontSize: T.base, fontWeight: 700 }}>{title}</div>
+      <div style={{ fontSize: T.xs, color: active ? C.jade : C.muted }}>{sub}</div>
     </div>
-    {lock && <span aria-label={L('固定顺序', '固定次序', 'Fixed')} style={{ color: C.muted, flexShrink: 0 }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg></span>}
+    {lock && <span aria-label={L('固定顺序', '固定次序', 'Fixed')} style={{ color: C.faint, flexShrink: 0 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg></span>}
   </div>
 );

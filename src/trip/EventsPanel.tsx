@@ -76,7 +76,7 @@ export const EventsPanel = ({ t, onFired, onReset }: { t: Trip; onFired: () => v
           <Ev label={t.showerPeak ? '淋浴排队恢复平峰' : '贵宾室淋浴进入高峰（排队约 70 分）'} onClick={() => fire(() => t.setShowerPeak(!t.showerPeak))} />
           <Ev label="餐厅出餐变慢（每家 +8 单）" onClick={() => fire(() => t.setKitchens((k) => Object.fromEntries(Object.entries(k).map(([a, v]) => [a, { ...v, orders: v.orders + 8 }]))))} />
           {order && <Ev label={`${pname(PLACES.find((p) => p.id === order.id)!)} 餐已做好`} onClick={() => fire(() => t.setPlan((p) => p.map((x) => (x.uid === order.uid ? { ...x, readyAt: t.clock } : x))))} />}
-          <Ev label={t.bag === 'ok' ? '行李状态：无法确认' : '行李状态：已确认直挂'} onClick={() => fire(() => t.setBag(t.bag === 'ok' ? 'unknown' : 'ok'))} />
+          <Ev label={t.bag === 'ok' ? '行李改为：只挂到香港（需入境）' : '行李改为：直挂'} onClick={() => fire(() => { t.setBag(t.bag === 'ok' ? 'immig' : 'ok'); t.setHere('arr'); })} />
         </>)}
         {tab === 'pax' && (<>
           <Row label="步速">

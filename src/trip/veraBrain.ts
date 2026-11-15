@@ -1,4 +1,5 @@
-import { dur, FLIGHT, hm, PLACES, Place, pname, SHOWER_LABEL, showerWait, waitMin } from './data';
+import { dur, FLIGHT, hm, nameOf, PLACES, Place, pname, SHOWER_LABEL, showerWait, waitMin } from './data';
+const nameOfStep = (id: string) => nameOf(id);
 import { L, tr } from './i18n';
 import { Trip } from './store';
 import { generate, markShown, Pref, PREFS } from './routes';
@@ -28,7 +29,7 @@ export function reply(q: string, c: Ctx): Msg {
   // 准时登机第一：安全时间以外（安检前、返回缓冲、需立即登机、或剩不到 20 分钟）不推荐任何活动
   const recQ = has('推荐', '路线', '逛', '安排', '无聊', '推介', '路線', '好悶', 'recommend', 'route', 'bored', '饿', '吃', '餐', '饭', '肚餓', '食', '飯', 'hungry', 'eat', 'food', '咖啡', 'coffee', '淋浴', '洗澡', '冲凉', '沖涼', 'shower', '贵宾室', '休息室', '貴賓室', 'lounge', '手信', '礼物', '禮物', 'gift', 'souvenir', '买', '购物', '免税', '買', '免稅', 'shop', '看飞机', '拍照', '打卡', '睇飛機', 'plane', 'photo', '清真', 'halal');
   if (recQ && !(t.phase === 'free' && !t.atSec && t.left >= 20)) {
-    if (t.atSec) return { who: 'vera', text: L('先完成转机安检，安全时间开始后我再帮你安排活动。', '先過咗轉機安檢，安全時間開始之後我再幫你安排。', 'Clear transfer security first. Once your safe time starts I will help you plan.') };
+    if (t.atSec) return { who: 'vera', text: L(`先完成「${nameOfStep(t.preTarget)}」，之后我再帮你安排。`, `先搞掂「${nameOfStep(t.preTarget)}」，之後我再幫你安排。`, `Finish ${nameOfStep(t.preTarget)} first, then I will help you plan.`) };
     const gateAct: Act = { label: L('导航去登机口', '帶我去閘口', 'Guide me to the gate'), run: () => { c.goMap(); c.close(); } };
     return { who: 'vera', text: L(`为了确保你准时登机，现在不再推荐新的活动。请在 ${hm(t.leaveBy)} 前出发去 ${t.gateName} 号登机口。`, `為咗確保你準時登機，而家唔再推介新活動。請喺 ${hm(t.leaveBy)} 前出發去 ${t.gateName} 號閘口。`, `To make sure you board on time, I am not suggesting anything new. Leave for gate ${t.gateName} by ${hm(t.leaveBy)}.`), acts: [gateAct] };
   }
@@ -82,7 +83,7 @@ export function reply(q: string, c: Ctx): Msg {
     `${FLIGHT.outNo} departs ${hm(t.dep)}, boarding ${hm(t.dep - t.boardBuffer)}. ${t.pre ? `Security takes ~${t.pre} min, ` : ''}the walk to gate ${t.gateName} ~${t.walkGate} min. ${t.left >= 0 ? `You still have ${dur(t.left)} free.` : `You are over by ${dur(-t.left)}; drop a stop or two.`}`) };
   if (has('行李', '直挂', '直掛', 'bag', 'luggage')) return t.bag === 'ok'
     ? { who: 'vera', text: L('你的行李已直挂到目的地，不用取，直接过转机安检。', '你啲行李已經直掛去目的地，唔使攞，直接過轉機安檢。', 'Your bags are checked through. Go straight to transfer security.') }
-    : { who: 'vera', text: L('系统确认不了你的行李是否直挂，这个我不能替你猜，请先去 L5 国泰转机柜台。', '系統確認唔到你啲行李有冇直掛，我唔可以亂估，麻煩先去 L5 國泰轉機櫃位。', 'I cannot confirm your bags are checked through. Please ask at the Cathay transfer desk on L5.'), acts: [callAct] };
+    : { who: 'vera', text: L('你的行李只挂到香港：先入境、到行李转盘取行李，再到离港层重新值机和安检，我会一步步带你走。', '你啲行李只係掛到香港：先入境、去行李轉盤攞行李，再去離港層登記同安檢，我會一步步帶你。', 'Your bags end in Hong Kong: clear immigration, collect them, then check in and clear security again. I will guide each step.'), acts: [{ label: L('看导航', '睇導航', 'Navigate'), run: () => { c.close(); c.goMap(); } }] };
   if (has('登机口', '闸口', '閘口', 'gate')) return { who: 'vera', text: L(`你的登机口是 ${t.gateName} 号，${hm(t.dep - t.boardBuffer)} 开始登机。`, `你嘅閘口係 ${t.gateName} 號，${hm(t.dep - t.boardBuffer)} 開始登機。`, `Your gate is ${t.gateName}, boarding at ${hm(t.dep - t.boardBuffer)}.`), acts: [{ label: L('看导航', '睇導航', 'Navigate'), run: () => { c.close(); c.goMap(); } }] };
   if (has('里数', '里程', '里數', '积分', '会员', '登录', '登入', 'mile', 'login', 'member')) return t.member
     ? { who: 'vera', text: L(`你这次中转已经累积了 ${t.miles} Asia Miles。`, `你今次轉機儲咗 ${t.miles} Asia Miles。`, `You have earned ${t.miles} Asia Miles this transfer.`) }

@@ -4,6 +4,7 @@ import { dur, floorLabel, PLACES, pickupEstimate, pname, waitMin } from './data'
 import { L, useLang } from './i18n';
 import { Trip } from './store';
 import { btn, C, Icon, MilesTag, mono, Sheet } from './ui';
+import { PlaceMark } from './marks';
 
 /** Only Cathay partners take orders in-app. */
 export const OrderPicker = ({ t, onPick, onClose }: { t: Trip; onPick: (id: string) => void; onClose: () => void }) => {
@@ -11,14 +12,14 @@ export const OrderPicker = ({ t, onPick, onClose }: { t: Trip; onPick: (id: stri
   const shops = PLACES.filter((p) => p.partner && p.order);
   return (
     <Sheet title={L('合作商户 · 提前点餐', '合作商戶 · 預先落單', 'Partner ordering')} onClose={onClose}>
-      <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>{L('出餐时间按商户实时订单量估算', '等餐時間按商戶即時單量估', 'Wait times use live order volume')}</div>
+      
       <div style={{ display: 'grid', gap: 8 }}>
         {shops.map((s) => {
           const k = t.kitchens[s.id] ?? s.kitchen!;
           const cost = t.costOf(s.id);
           return (
             <button key={s.id} onClick={() => onPick(s.id)} style={{ textAlign: 'left', display: 'flex', gap: 10, alignItems: 'center', border: `1px solid ${C.line}`, background: C.paper, borderRadius: 12, padding: 10, cursor: 'pointer', color: C.ink }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: C.jadeSoft, display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon n="dine" c={C.jade} /></div>
+              <PlaceMark id={s.id} cat={s.cat} size={38} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 600, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>{pname(s)} <MilesTag t={t} n={s.miles} /></div>
                 <div style={{ fontSize: 12, color: C.muted }}>{floorLabel(s.floor)} · {L(`前方 ${k.orders} 单 · 出餐约 ${waitMin(k)} 分`, `前面 ${k.orders} 張單 · 等大約 ${waitMin(k)} 分鐘`, `${k.orders} ahead · ~${waitMin(k)} min`)}</div>

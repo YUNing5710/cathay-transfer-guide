@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { dur, floorLabel, pname } from './data';
+import { dur, pname } from './data';
 import { L, tr, useLang } from './i18n';
 import { Trip } from './store';
 import { generate, markShown, Pref, PREFS } from './routes';
-import { btn, C, Icon, MilesTag } from './ui';
+import { btn, C, ease, Icon, MilesTag, T } from './ui';
+import { PlaceMark } from './marks';
 
-/** One-tap route generator: pick a preference, it fills about 80% of the free time. */
-export const RouteGen = ({ t, onAdded, onClose, compact }: { t: Trip; onAdded?: () => void; onClose?: () => void; compact?: boolean }) => {
+/** One-tap route: pick preferences, it fills up to 80% of the free time and keeps 10 min spare. */
+export const RouteGen = ({ t, onAdded, onClose, onExplore }: { t: Trip; onAdded?: () => void; onClose?: () => void; onExplore?: () => void }) => {
   useLang();
   const [prefs, setPrefs] = useState<Pref[]>(['mix']);
   const toggle = (k: Pref) => setPrefs((ps) => (ps.includes(k) ? (ps.length > 1 ? ps.filter((x) => x !== k) : ps) : [...ps, k]));
@@ -18,48 +19,48 @@ export const RouteGen = ({ t, onAdded, onClose, compact }: { t: Trip; onAdded?: 
     markShown(picks);
     picks.forEach((p) => t.add(p.id));
     t.setGenUsed(true);
-    t.note(L(`已加入 ${picks.length} 站 · 按楼层动线排好`, `加咗 ${picks.length} 個站 · 跟樓層順路排好`, `${picks.length} stops added in walking order`));
-    onAdded?.();
+    t.note(L(`已加入 ${picks.length} 站`, `加咗 ${picks.length} 個站`, `${picks.length} stops added`));
+    onAdded?.(); onClose?.();
   };
   return (
-    <section style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 16, padding: 14, minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Icon n="route" c={C.jade} />
-        <strong style={{ fontSize: 15, flex: 1 }}>{L('一键生成顺路路线', '一撳排好順路路線', 'One-tap route')}</strong>
-        {onClose && <button aria-label={L('收起', '收埋', 'Dismiss')} onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2 }}><Icon n="x" s={16} c={C.muted} /></button>}
+    <section style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 16, padding: 14, minWidth: 0, animation: `rise .3s ${ease}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <strong style={{ fontSize: T.md, flex: 1 }}>{L('一键规划', '一撳排好', 'Plan for me')}</strong>
+        <span style={{ fontSize: T.xs, color: C.muted }}>{L('可多选', '可以揀多個', 'Pick any')}</span>
+        {onClose && <button aria-label={L('收起', '收埋', 'Collapse')} onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2 }}><Icon n="x" s={14} c={C.muted} /></button>}
       </div>
-      <div style={{ fontSize: 12, color: C.muted, margin: '4px 0 10px' }}>{L('偏好可多选；最多排满可支配时间的八成，至少留 10 分钟余量', '喜好可以揀多個；最多排滿八成時間，起碼留 10 分鐘', 'Pick one or more; fills up to 80% of your free time, keeping at least 10 min spare')}</div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {PREFS.map((p) => <button key={p.k} aria-pressed={prefs.includes(p.k)} onClick={() => toggle(p.k)} style={chip(prefs.includes(p.k))}>{tr(p.n)}</button>)}
-      </div>
-      <div style={{ fontSize: 12, color: C.muted, margin: '8px 0' }}>{prefs.length > 1 ? L(`已选 ${prefs.length} 项偏好，按比例加权混合`, `揀咗 ${prefs.length} 個喜好，按比例混合`, `${prefs.length} preferences blended by weight`) : tr(PREFS.find((p) => p.k === prefs[0])!.d)}</div>
+      <Chips items={PREFS.map((p) => ({ k: p.k, label: tr(p.n), on: prefs.includes(p.k) }))} onPick={(k) => toggle(k as Pref)} />
       {picks.length ? (
         <>
-          {compact ? <div style={{ fontSize: 13, marginBottom: 8, lineHeight: 1.5 }}>{picks.map(pname).join(' → ')}</div> : (
-            <ol style={{ listStyle: 'none', margin: '0 0 10px', padding: 0, display: 'grid', gap: 6 }}>
-              {picks.map((p, i) => (
-                <li key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-                  <span style={{ width: 20, height: 20, borderRadius: 10, background: C.jade, color: '#fff', fontSize: 11, fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{i + 1}</span>
-                  <span style={{ flex: 1, minWidth: 0 }}>{pname(p)} <span style={{ color: C.muted }}>· {floorLabel(p.floor)}</span></span>
-                </li>
-              ))}
-            </ol>
-          )}
-          <div style={{ fontSize: 12, display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-            <span>{L(`共 ${picks.length} 站 · 预估占用 ${dur(cost)}（含步行）`, `${picks.length} 個站 · 預計用 ${dur(cost)}（連行路）`, `${picks.length} stops · est. ${dur(cost)} incl. walking`)}</span>
-            <MilesTag t={t} n={miles} />
+          <div className="noscroll" style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '12px -2px 10px', padding: '0 2px' }}>
+            {picks.map((p, i) => (
+              <div key={p.id} style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 6, background: C.bg, borderRadius: 12, padding: '5px 10px 5px 5px', animation: `rise .3s ${ease} ${i * 0.04}s both` }}>
+                <PlaceMark id={p.id} cat={p.cat} size={26} />
+                <span style={{ fontSize: T.sm, fontWeight: 600, whiteSpace: 'nowrap' }}>{pname(p)}</span>
+              </div>
+            ))}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button style={{ ...btn('ghost'), flex: '0 0 auto' }} onClick={() => { markShown(picks); setSeed((s) => s + 1); }}>{L('换一条', '換過條', 'Shuffle')}</button>
-            <button style={{ ...btn(), flex: 1 }} onClick={go}>{L('生成并加入行程', '加入行程', 'Add to my plan')}</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: T.xs, color: C.muted, flex: 1 }}>{L(`${picks.length} 站 · 约 ${dur(cost)}`, `${picks.length} 站 · 大約 ${dur(cost)}`, `${picks.length} stops · ~${dur(cost)}`)} <MilesTag t={t} n={miles} /></span>
+            <button aria-label={L('换一条', '換過條', 'Shuffle')} onClick={() => { markShown(picks); setSeed((s) => s + 1); }} style={{ ...btn('soft'), padding: '8px 10px' }}>↻</button>
+            <button style={{ ...btn(), padding: '8px 14px' }} onClick={go}>{L('加入行程', '加入行程', 'Add')}</button>
           </div>
         </>
       ) : (
-        <div style={{ fontSize: 13, color: C.muted }}>
-          {t.left < 20 ? L(`可支配时间只剩 ${dur(Math.max(0, t.left))}，按时去登机口更稳妥。`, `淨返 ${dur(Math.max(0, t.left))}，準時去閘口穩陣啲。`, `Only ${dur(Math.max(0, t.left))} left. Head to the gate on time.`) : L('这个偏好下合适的地点都已在行程里，换个偏好试试。', '呢個喜好啱嘅地方都喺行程度喇，轉個試吓。', 'Everything that fits this preference is already in your plan.')}
-        </div>
+        <div style={{ fontSize: T.sm, color: C.muted, marginTop: 10 }}>{t.left < 20 ? L('时间不多，按时去登机口更稳妥', '時間唔多，準時去閘口穩陣啲', 'Not much time — head to the gate') : L('合适的地方都已在行程里', '啱嘅地方都喺行程度', 'Everything that fits is already planned')}</div>
       )}
+      {onExplore && <button onClick={onExplore} style={{ marginTop: 10, border: 'none', background: 'none', color: C.jade, fontSize: T.xs, fontWeight: 600, cursor: 'pointer', padding: 0 }}>{L('或者自己去探索挑', '或者自己去探索揀', 'Or browse yourself')} ›</button>}
     </section>
   );
 };
-export const chip = (on: boolean): React.CSSProperties => ({ padding: '6px 12px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: `1px solid ${on ? C.jade : C.line}`, background: on ? C.jade : C.paper, color: on ? '#fff' : C.ink });
+
+/** Horizontally scrolling pill row — never wraps, edge fades hint that it scrolls. */
+export const Chips = ({ items, onPick }: { items: { k: string; label: string; on: boolean }[]; onPick: (k: string) => void }) => (
+  <div style={{ position: 'relative', margin: '0 -14px' }}>
+    <div className="noscroll" style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '2px 14px', scrollSnapType: 'x proximity' }}>
+      {items.map((c) => <button key={c.k} aria-pressed={c.on} onClick={() => onPick(c.k)} style={{ ...chip(c.on), scrollSnapAlign: 'start' }}>{c.label}</button>)}
+    </div>
+    <div aria-hidden style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 18, background: 'linear-gradient(90deg, transparent, var(--chip-fade, #fff))', pointerEvents: 'none' }} />
+  </div>
+);
+export const chip = (on: boolean): React.CSSProperties => ({ flex: '0 0 auto', padding: '6px 14px', borderRadius: 999, fontSize: T.sm, fontWeight: 600, cursor: 'pointer', border: `1px solid ${on ? C.jade : C.line}`, background: on ? C.jade : C.paper, color: on ? '#fff' : C.ink, whiteSpace: 'nowrap', transition: `background .18s ${ease}, color .18s, border-color .18s` });

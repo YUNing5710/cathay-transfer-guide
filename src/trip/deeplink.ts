@@ -8,14 +8,14 @@
 //   gate  离港登机口（如 61）                 term  抵达航站楼（如 T1）
 //   date  日期 YYYY-MM-DD                    lang  zh / hk / en
 //   src   入口：card 值机小卡 / seat 座椅屏 / nfc 立牌 / app 国泰 App
-//   bag   ok 行李已直挂 / unknown 待确认
+//   bag   ok 行李已直挂 / immig 只挂到香港（需入境）；不写则进入前询问
 import { ARRIVALS, DEPARTURES, InFlight, OutFlight } from './data';
 import { Lang, setLang } from './i18n';
 
 export interface DeepLink {
   status: 'none' | 'ok' | 'bad';     // none: 纯网址；ok: 识别到航班；bad: 参数格式不对
   inF?: InFlight; outF?: OutFlight;
-  gate?: string; term?: string; date?: string; src?: string; bag?: 'ok' | 'unknown';
+  gate?: string; term?: string; date?: string; src?: string; bag?: 'ok' | 'immig';
   problems: string[];
 }
 
@@ -65,7 +65,8 @@ export function readDeepLink(search = typeof window !== 'undefined' ? window.loc
     dep: dep ? toMin(dep) : knownOut?.dep ?? 20 * 60, miles: knownOut?.miles ?? 0,
   };
   const gate = (q.get('gate') || '').replace(/\D/g, '') || undefined;
-  const bag = q.get('bag') === 'ok' ? 'ok' : q.get('bag') === 'unknown' ? 'unknown' : undefined;
+  const bv = (q.get('bag') || '').toLowerCase();
+  const bag = bv === 'ok' ? 'ok' : bv === 'immig' || bv === 'hk' ? 'immig' : undefined;
   return { status: 'ok', inF, outF, gate, term: q.get('term')?.toUpperCase() || undefined, date: date || undefined, src: q.get('src') || undefined, bag, problems };
 }
 

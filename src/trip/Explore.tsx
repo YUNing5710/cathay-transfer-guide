@@ -1,17 +1,24 @@
 import React, { useState } from 'react';
-import { Cat, CAT_LABEL, dur, floorLabel, PLACES, Place, pname, pnote, SHOWER_LABEL, showerWait, waitMin } from './data';
+import { Cat, CAT_LABEL, dur, floorLabel, PLACES, Place, pname, showerWait, waitMin } from './data';
 import { L, tr, useLang } from './i18n';
 import { Trip } from './store';
-import { RouteGen, chip } from './RouteGen';
-import { btn, C, catIcon, Icon, MilesTag } from './ui';
+import { Chips, RouteGen } from './RouteGen';
+import { btn, C, ease, Icon, MilesTag, T } from './ui';
+import { PlaceMark } from './marks';
 
 const CATS: ('全部' | Cat)[] = ['全部', '餐饮', '购物', '观光', '贵宾室', '设施', '服务'];
+
+/** One short, factual line per place — the place itself is the headline. */
+const blurb = (p: Place): string => {
+  const d = tr(p.d).split('·').map((x) => x.trim()).filter((x) => !/国泰合作|國泰合作|Cathay partner|非合作|not a partner|Asia Miles|^免费$|^免費$|^Free$/i.test(x));
+  return d[0] ?? '';
+};
 
 export const Explore = ({ t, openOrder, goHome }: { t: Trip; openOrder: (id?: string) => void; goHome: () => void }) => {
   useLang();
   const [cat, setCat] = useState<'全部' | Cat>('全部');
   const [ask, setAsk] = useState<Place | null>(null);
-  void useLang;
+  const [gen, setGen] = useState(false);
   const list = PLACES.filter((p) => t.visible(p) && (cat === '全部' || p.cat === cat))
     .map((p) => ({ p, cost: t.costOf(p.id) }))
     .sort((a, b) => Number(!!b.p.partner) - Number(!!a.p.partner) || a.cost - b.cost);
@@ -23,52 +30,61 @@ export const Explore = ({ t, openOrder, goHome }: { t: Trip; openOrder: (id?: st
   const tryAdd = (p: Place) => (t.has(p.id) ? setAsk(p) : addNow(p));
 
   return (
-    <div style={{ padding: '12px 14px 18px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 12, width: '100%', overflowX: 'hidden' }}>
-      <RouteGen t={t} onAdded={goHome} />
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {CATS.map((c) => <button key={c} aria-pressed={cat === c} onClick={() => setCat(c)} style={{ ...chip(cat === c), flex: '0 0 auto' }}>{tr(CAT_LABEL[c])}</button>)}
+    <div style={{ padding: '12px 14px 16px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: T.lg, fontWeight: 800 }}>{L('探索', '探索', 'Explore')}</div>
+          <div style={{ fontSize: T.xs, color: C.muted }}>{t.canAdd ? L(`可用 ${dur(Math.max(0, t.left))} · 按顺路排序`, `有 ${dur(Math.max(0, t.left))} · 按順路排`, `${dur(Math.max(0, t.left))} free · nearest first`) : L('返回缓冲中，暂不可添加', '返程緩衝中，暫時加唔到', 'Return buffer — adding paused')}</div>
+        </div>
+        {t.canAdd && !t.atSec && <button onClick={() => setGen(!gen)} aria-pressed={gen} style={{ ...btn(gen ? 'primary' : 'soft'), padding: '7px 12px', fontSize: T.sm }}>{L('一键规划', '一撳排好', 'Plan for me')}</button>}
       </div>
-      <div style={{ display: 'grid', gap: 8 }}>
-        {list.map(({ p, cost }) => {
+      {gen && <RouteGen t={t} onAdded={goHome} onClose={() => setGen(false)} />}
+      <div style={{ ['--chip-fade' as string]: C.bg } as React.CSSProperties}>
+        <Chips items={CATS.map((c) => ({ k: c, label: tr(CAT_LABEL[c]), on: cat === c }))} onPick={(k) => setCat(k as '全部' | Cat)} />
+      </div>
+      <div key={cat} style={{ display: 'grid', gap: 8 }}>
+        {list.map(({ p, cost }, i) => {
           const full = p.access && p.access !== 'paid' && t.loungeFull;
           const fits = cost <= t.left && !full && t.canAdd;
           const added = t.plan.filter((x) => x.id === p.id && !x.done).length;
           const sw = p.shower ? showerWait(t.clock + 20, t.showerPeak) : null;
+          const food = p.kitchen && p.partner ? waitMin(t.kitchens[p.id] ?? p.kitchen) : 0;
+          const b = blurb(p);
           return (
-            <div key={p.id} style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0, background: fits ? C.paper : C.grey, border: `1px solid ${C.line}`, borderRadius: 14, padding: 10 }}>
-              <div style={{ width: 38, height: 38, borderRadius: 10, background: fits ? C.jadeSoft : '#DDE2E1', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon n={catIcon[p.cat]} c={fits ? C.jade : C.muted} /></div>
+            <div key={p.id} style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0, background: C.paper, border: `1px solid ${C.line}`, borderRadius: 16, padding: '10px 10px 10px 10px', opacity: fits ? 1 : 0.62, animation: `rise .3s ${ease} ${Math.min(i, 8) * 0.025}s both`, transition: 'opacity .2s' }}>
+              <PlaceMark id={p.id} cat={p.cat} size={44} muted={!fits} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                  {pname(p)}
-                  {p.free && <span style={tag(C.jade, C.jadeSoft)}>{L('免费', '免費', 'Free')}</span>}
-                  {p.partner && <span style={tag(C.jade, C.jadeSoft)}>{L('国泰合作', '國泰合作', 'Cathay partner')}</span>}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                  <span style={{ fontSize: T.md, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{pname(p)}</span>
+                  {p.partner && <span title="Cathay partner" style={{ flexShrink: 0, width: 16, height: 16, borderRadius: 8, background: C.jade, display: 'grid', placeItems: 'center' }}><Icon n="check" s={10} c="#fff" w={3} /></span>}
+                  {added > 0 && <span style={tag(C.jade, C.jadeSoft)}>{L('已加', '加咗', 'Added')}{added > 1 ? ` ×${added}` : ''}</span>}
+                </div>
+                {b && <div style={{ fontSize: T.sm, color: C.muted, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b}</div>}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, fontSize: T.xs, color: C.muted, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                  <span style={{ fontWeight: 700, color: C.ink }}>{p.floor}</span>
+                  <span style={{ color: fits ? C.jade : C.red, fontWeight: 600 }}>{full ? L('满员', '爆滿', 'Full') : dur(cost)}</span>
+                  {food > 0 && <span>{L(`出餐 ${food} 分`, `等 ${food} 分鐘`, `food ${food}m`)}</span>}
+                  {sw && <span style={{ color: sw.level === 'calm' ? C.muted : C.gold }}>{L(`淋浴 ~${sw.wait} 分`, `沖涼 ~${sw.wait} 分`, `shower ~${sw.wait}m`)}</span>}
+                  {p.free && <span>{L('免费', '免費', 'Free')}</span>}
                   {p.partner && <MilesTag t={t} n={p.miles} />}
-                  {added > 0 && <span style={tag(C.muted, C.bg)}>{L('已添加', '加咗', 'Added')}{added > 1 ? ` ×${added}` : ''}</span>}
-                  {sw && <span style={tag(sw.level === 'calm' ? C.jade : C.gold, sw.level === 'calm' ? C.jadeSoft : C.goldSoft)}>{L('淋浴', '沖涼', 'Shower')} {tr(SHOWER_LABEL[sw.level])} · ~{sw.wait} min</span>}
                 </div>
-                <div style={{ fontSize: 12, color: fits ? C.muted : C.red, marginTop: 2 }}>
-                  {full ? L('当前满员', '而家爆滿', 'Full right now') : `${floorLabel(p.floor)} · ${L('预估占用', '預計用', 'est.')} ${dur(cost)}${p.kitchen && p.partner ? L(`（出餐约 ${waitMin(t.kitchens[p.id] ?? p.kitchen)} 分）`, `（等餐大約 ${waitMin(t.kitchens[p.id] ?? p.kitchen)} 分鐘）`, ` (food ~${waitMin(t.kitchens[p.id] ?? p.kitchen)} min)`) : ''} · ${pnote(p)}`}
-                  {!full && !fits && t.canAdd && L(` · 还差 ${dur(cost - Math.max(0, t.left))}`, ` · 差 ${dur(cost - Math.max(0, t.left))}`, ` · ${dur(cost - Math.max(0, t.left))} short`)}
-                  {!t.canAdd && L(' · 返回缓冲中，不能再添加', ' · 返程緩衝中，唔加得', ' · return buffer, cannot add')}
-                </div>
-                {sw && sw.wait >= 45 && t.left < 120 && <div style={{ fontSize: 12, color: C.gold, marginTop: 2 }}>{L('淋浴高峰排队较长，可支配不足 2 小时时不建议去洗澡', '沖涼排長龍，唔夠 2 個鐘就唔好去喇', 'Long shower queue. Not advised with under 2 h free')}</div>}
               </div>
               <button disabled={!fits} onClick={() => tryAdd(p)} aria-label={L(`加入 ${pname(p)}`, `加 ${pname(p)}`, `Add ${pname(p)}`)}
-                style={{ width: 34, height: 34, borderRadius: 17, border: `1px solid ${C.line}`, background: C.paper, cursor: fits ? 'pointer' : 'not-allowed', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                <Icon n="plus" s={16} c={fits ? C.jade : C.muted} />
+                style={{ width: 34, height: 34, borderRadius: 17, border: 'none', background: fits ? C.jade : C.grey, cursor: fits ? 'pointer' : 'not-allowed', display: 'grid', placeItems: 'center', flexShrink: 0, transition: 'background .2s' }}>
+                <Icon n="plus" s={16} c={fits ? '#fff' : C.faint} w={2.4} />
               </button>
             </div>
           );
         })}
       </div>
       {ask && (
-        <div role="dialog" style={{ position: 'absolute', inset: 0, background: 'rgba(10,25,24,.45)', zIndex: 70, display: 'grid', placeItems: 'center', padding: 24 }} onClick={() => setAsk(null)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: C.paper, borderRadius: 16, padding: 16, width: '100%', maxWidth: 320 }}>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>{L(`「${pname(ask)}」已添加`, `「${pname(ask)}」已經加咗`, `${pname(ask)} is already added`)}</div>
-            <div style={{ fontSize: 13, color: C.muted, margin: '6px 0 14px' }}>{L(`是否还要再添加一次？会多占用 ${dur(t.costOf(ask.id))}。`, `仲要再加多次？會多用 ${dur(t.costOf(ask.id))}。`, `Add it again? It takes another ${dur(t.costOf(ask.id))}.`)}</div>
+        <div role="dialog" style={{ position: 'absolute', inset: 0, background: 'rgba(10,28,27,.42)', zIndex: 70, display: 'grid', placeItems: 'center', padding: 24, animation: 'fade .2s ease' }} onClick={() => setAsk(null)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: C.paper, borderRadius: 20, padding: 18, width: '100%', maxWidth: 320, animation: `pop .3s ${ease}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><PlaceMark id={ask.id} cat={ask.cat} size={36} /><div style={{ fontSize: T.md, fontWeight: 700 }}>{L('再加一次？', '再加多次？', 'Add again?')}</div></div>
+            <div style={{ fontSize: T.sm, color: C.muted, margin: '8px 0 14px' }}>{L(`${pname(ask)} 已在行程里，再加需 ${dur(t.costOf(ask.id))}`, `${pname(ask)} 已經喺行程，再加要 ${dur(t.costOf(ask.id))}`, `${pname(ask)} is planned; another visit takes ${dur(t.costOf(ask.id))}`)}</div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button style={{ ...btn('ghost'), flex: 1 }} onClick={() => setAsk(null)}>{L('不用了', '唔使喇', 'No')}</button>
-              <button style={{ ...btn(), flex: 1 }} onClick={() => { const p = ask; setAsk(null); addNow(p); }}>{L('再添加一次', '再加多次', 'Add again')}</button>
+              <button style={{ ...btn('ghost'), flex: 1 }} onClick={() => setAsk(null)}>{L('不用', '唔使', 'No')}</button>
+              <button style={{ ...btn(), flex: 1 }} onClick={() => { const p = ask; setAsk(null); addNow(p); }}>{L('再加', '再加', 'Add')}</button>
             </div>
           </div>
         </div>
@@ -76,4 +92,5 @@ export const Explore = ({ t, openOrder, goHome }: { t: Trip; openOrder: (id?: st
     </div>
   );
 };
-const tag = (fg: string, bg: string): React.CSSProperties => ({ fontSize: 11, fontWeight: 600, color: fg, background: bg, padding: '1px 6px', borderRadius: 6 });
+const tag = (fg: string, bg: string): React.CSSProperties => ({ fontSize: T.xs, fontWeight: 600, color: fg, background: bg, padding: '1px 6px', borderRadius: 6, flexShrink: 0 });
+void floorLabel;

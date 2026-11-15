@@ -118,6 +118,10 @@ interface Node { n: Tri; floor: Floor; x: number; y: number; extra?: number }
 export const NODES: Record<string, Node> = {
   arr: { n: ['下机口', '落機位', 'Arrival gate'], floor: 'L5', x: 8, y: 22 },
   sec: { n: ['转机安检', '轉機安檢', 'Transfer security'], floor: 'L5', x: 40, y: 75 },
+  immig: { n: ['入境检查', '入境檢查', 'Immigration'], floor: 'L5', x: 30, y: 40, extra: 250 },
+  belt: { n: ['行李提取', '攞行李', 'Baggage reclaim'], floor: 'L5', x: 62, y: 60 },
+  checkin: { n: ['离港值机', '離港登記', 'Departure check-in'], floor: 'L7', x: 40, y: 50, extra: 200 },
+  dsec: { n: ['离港安检', '離港安檢', 'Departure security'], floor: 'L7', x: 70, y: 70 },
   g23: { n: ['23 号登机口', '23 號登機閘口', 'Gate 23'], floor: 'L6', x: 20, y: 51 },
   g512: { n: ['512 号登机口', '512 號登機閘口', 'Gate 512'], floor: 'L3', x: 90, y: 60, extra: 900 },
 };

@@ -1,199 +1,184 @@
 import React, { useEffect, useState } from 'react';
 import { ARRIVALS, city, DEPARTURES, FLIGHT, hm, InFlight, OutFlight, resetFlights, setFlights } from './data';
 import { L, useLang } from './i18n';
-import { btn, C, Icon, mono } from './ui';
+import { btn, C, ease, Icon, mono, T } from './ui';
 import { clearDeepLink, DeepLink, readDeepLink } from './deeplink';
+import { Bag } from './store';
 
 type Way = 'card' | 'seat' | 'nfc' | 'app';
-const ways = (): { k: Way; t: string; d: string; icon: string }[] => [
-  { k: 'card', t: L('值机小卡片', '登機證小卡', 'Check-in card'), d: L('登机时随登机证附上的二维码', '登機時連登機證一齊派嘅 QR code', 'QR code handed out with your boarding pass'), icon: 'cam' },
-  { k: 'seat', t: L('座椅屏', '座位屏幕', 'Seatback screen'), d: L('降落前在座椅屏上扫码', '落機前喺座位屏幕掃碼', 'Scan before landing'), icon: 'info' },
-  { k: 'nfc', t: L('NFC 立牌', 'NFC 牌', 'NFC stand'), d: L('下机口立牌，手机轻碰即开', '落機位個牌，部機輕輕掂一掂就得', 'Tap your phone at the gate stand'), icon: 'bolt' },
-  { k: 'app', t: 'Cathay Pacific App', d: L('已安装用户直接从行程打开', '有裝 App 嘅直接喺行程打開', 'Open from your trip in the app'), icon: 'phone' },
+const ways = (): { k: Way; t: string; icon: string }[] => [
+  { k: 'card', t: L('登机证二维码', '登機證 QR code', 'Boarding-pass QR'), icon: 'cam' },
+  { k: 'seat', t: L('座椅屏', '座位屏幕', 'Seatback screen'), icon: 'info' },
+  { k: 'nfc', t: L('NFC 立牌', 'NFC 牌', 'NFC stand'), icon: 'bolt' },
+  { k: 'app', t: 'Cathay App', icon: 'phone' },
 ];
 
 const QR = () => {
   const cells: React.ReactElement[] = [];
   let s = 7;
   for (let y = 0; y < 21; y++) for (let x = 0; x < 21; x++) {
-    const finder = (x < 8 && y < 8) || (x > 12 && y < 8) || (x < 8 && y > 12);
-    if (finder) continue;
+    if ((x < 8 && y < 8) || (x > 12 && y < 8) || (x < 8 && y > 12)) continue;
     s = (s * 9301 + 49297) % 233280;
     if (s / 233280 > 0.52) cells.push(<rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" />);
   }
-  const F = ({ x, y }: { x: number; y: number }) => (
-    <g><rect x={x} y={y} width="7" height="7" /><rect x={x + 1} y={y + 1} width="5" height="5" fill="#fff" /><rect x={x + 2} y={y + 2} width="3" height="3" /></g>
-  );
-  return (
-    <svg viewBox="-1 -1 23 23" width="100%" height="100%" fill={C.ink} aria-hidden="true">
-      <rect x="-1" y="-1" width="23" height="23" fill="#fff" />
-      {cells}<F x={0} y={0} /><F x={14} y={0} /><F x={0} y={14} />
-    </svg>
-  );
+  const F = ({ x, y }: { x: number; y: number }) => <g><rect x={x} y={y} width="7" height="7" /><rect x={x + 1} y={y + 1} width="5" height="5" fill="#fff" /><rect x={x + 2} y={y + 2} width="3" height="3" /></g>;
+  return <svg viewBox="-1 -1 23 23" width="100%" height="100%" fill={C.ink} aria-hidden="true"><rect x="-1" y="-1" width="23" height="23" fill="#fff" />{cells}<F x={0} y={0} /><F x={14} y={0} /><F x={0} y={14} /></svg>;
 };
 
-export interface EntryInfo { gate?: string; bag?: 'ok' | 'unknown'; term?: string }
+export interface EntryInfo { gate?: string; bag: Bag; term?: string }
+type Stage = 'choose' | 'scan' | 'pick' | 'bag' | 'ok' | 'link';
+
 export const Entry = ({ onDone }: { onDone: (info: EntryInfo) => void }) => {
   useLang();
-  // 网址带了航班 → 识别动画 → 自动进入；纯网址或格式错误 → 选择/填写航班
   const [link] = useState<DeepLink>(() => readDeepLink());
-  const [way, setWay] = useState<Way | null>(() => (link.status === 'ok' ? ((['card', 'seat', 'nfc', 'app'] as Way[]).includes(link.src as Way) ? (link.src as Way) : 'card') : link.status === 'none' ? null : 'card'));
-  const [stage, setStage] = useState<'choose' | 'scan' | 'pick' | 'ok' | 'link'>(link.status === 'ok' ? 'link' : 'pick');
+  const fromLink = link.status === 'ok';
+  const [way, setWay] = useState<Way>(() => ((['card', 'seat', 'nfc', 'app'] as Way[]).includes(link.src as Way) ? (link.src as Way) : 'card'));
+  const [stage, setStage] = useState<Stage>(fromLink ? 'link' : 'choose');
+  const [bag, setBag] = useState<Bag | null>(fromLink ? link.bag ?? null : null);
   const [inNo, setInNo] = useState(''); const [outNo, setOutNo] = useState('');
-  const info: EntryInfo = link.status === 'ok' ? { gate: link.gate, bag: link.bag, term: link.term } : { bag: 'unknown' };
-  const finish = () => { clearDeepLink(); onDone(info); };
-  useEffect(() => {
-    if (stage !== 'link' || !link.inF || !link.outF) return;
-    setFlights(link.inF, link.outF);
-    const a = setTimeout(() => setStage('ok'), 1600);
-    return () => clearTimeout(a);
-  }, [stage]);
-  useEffect(() => { if (stage !== 'ok' || link.status !== 'ok') return; const b = setTimeout(finish, 1800); return () => clearTimeout(b); }, [stage]);
   const [inSel, setInSel] = useState<InFlight | null>(null);
   const [outSel, setOutSel] = useState<OutFlight | null>(null);
   const [q, setQ] = useState('');
-  const needsPick = link.status !== 'ok';
   const W = ways();
+  const label = W.find((w) => w.k === way)?.t ?? '';
+  const finish = (b: Bag) => { clearDeepLink(); onDone({ gate: fromLink ? link.gate : undefined, bag: b, term: fromLink ? link.term : undefined }); };
+  /** After flights are known: ask about bags only if we do not already know, then play the confirmation. */
+  const afterFlights = () => setStage(bag ? 'ok' : 'bag');
 
   useEffect(() => {
-    if (stage !== 'scan') return;
-    const id = setTimeout(() => {
-      if (needsPick) { setInSel(null); setOutSel(null); setQ(''); setStage('pick'); }
-      else { resetFlights(); setStage('ok'); }
-    }, 1500);
-    return () => clearTimeout(id);
+    if (stage === 'link' && link.inF && link.outF) { setFlights(link.inF, link.outF); const a = setTimeout(afterFlights, 1100); return () => clearTimeout(a); }
+    if (stage === 'scan') { const a = setTimeout(() => setStage('pick'), 1300); return () => clearTimeout(a); }
+    if (stage === 'ok' && bag) { const a = setTimeout(() => finish(bag), 1300); return () => clearTimeout(a); }
   }, [stage]);
 
-  const label = W.find((w) => w.k === way)?.t ?? '';
   const match = (s: string) => !q.trim() || s.toLowerCase().includes(q.trim().toLowerCase());
   const arrivals = ARRIVALS.filter((f) => match(`${f.no}${f.from}${f.fromCode}${city(f.fromCode)}`));
   const departures = DEPARTURES.filter((f) => match(`${f.no}${f.to}${f.toCode}${city(f.toCode)}`));
+  const ok = /^[A-Z0-9]{2}\d{1,4}$/;
+  const a = inSel ?? (ok.test(inNo) ? ({ no: inNo, from: '', fromCode: '', arr: '--:--', status: 'landed' } as InFlight) : null);
+  const d = outSel ?? (ok.test(outNo) ? ({ no: outNo, to: '', toCode: '', dep: 20 * 60, miles: 0 } as OutFlight) : null);
 
   return (
-    <div style={{ flex: 1, padding: '18px 16px', display: 'grid', alignContent: 'start', gap: 14 }}>
-      <style>{`@keyframes scanl{0%{top:6%}100%{top:90%}}@keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:none;opacity:1}}@keyframes ring{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.5);opacity:0}}`}</style>
+    <div key={stage} style={{ flex: 1, padding: '20px 18px', display: 'grid', alignContent: stage === 'choose' || stage === 'pick' ? 'start' : 'center', gap: 16, animation: `rise .35s ${ease}` }}>
       {stage === 'link' && link.inF && link.outF && (
-        <div style={{ display: 'grid', justifyItems: 'center', gap: 16, paddingTop: 40 }}>
-          <div style={{ position: 'relative', width: 120, height: 120, borderRadius: 60, background: C.jadeSoft, display: 'grid', placeItems: 'center' }}>
-            <div style={{ position: 'absolute', inset: 0, borderRadius: 60, border: `3px solid ${C.jade}`, animation: 'ring 1.2s ease-out infinite' }} />
-            <Icon n="route" s={52} c={C.jade} w={1.8} />
+        <div style={{ display: 'grid', justifyItems: 'center', gap: 18 }}>
+          <Pulse icon="route" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: mono, fontSize: T.xl, fontWeight: 700 }}>
+            <span style={{ animation: `pop .4s ${ease} both` }}>{link.inF.no}</span>
+            <span style={{ color: C.faint, fontSize: T.md, animation: `pop .4s ${ease} .2s both` }}>HKG</span>
+            <span style={{ animation: `pop .4s ${ease} .4s both` }}>{link.outF.no}</span>
           </div>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>{L('正在识别你的行程…', '識別緊你嘅行程…', 'Reading your trip…')}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: mono, fontSize: 20, fontWeight: 700 }}>
-            <span style={{ animation: 'pop .5s ease both' }}>{link.inF.no}</span>
-            <span style={{ color: C.muted, animation: 'pop .5s ease .35s both' }}>→ HKG →</span>
-            <span style={{ animation: 'pop .5s ease .7s both' }}>{link.outF.no}</span>
-          </div>
-          {link.date && <div style={{ fontSize: 13, color: C.muted }}>{link.date}</div>}
+          <div style={{ fontSize: T.sm, color: C.muted }}>{L('正在读取行程', '讀緊行程', 'Reading your trip')}</div>
         </div>
       )}
-      {stage === 'choose' && (
-        <>
-          <div>
-            <div style={{ fontSize: 13, color: C.muted }}>Hong Kong International Airport · {L('中转', '轉機', 'Transfer')}</div>
-            <h1 style={{ fontSize: 24, margin: '4px 0 0', color: C.ink }}>{L('扫一下，开始转机指引', '掃一掃，開始轉機指引', 'Scan to start your transfer')}</h1>
-            <div style={{ fontSize: 14, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>{L('选择你手边的入口，航班信息会自动带入。', '揀你手邊嘅入口，航班資料會自動帶入。', 'Pick whichever is at hand; your flights load automatically.')}</div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 10 }}>
-            {W.map((w) => (
-              <button key={w.k} onClick={() => { setWay(w.k); setStage('scan'); }}
-                style={{ textAlign: 'left', minWidth: 0, border: `1px solid ${C.line}`, background: C.paper, borderRadius: 14, padding: 12, cursor: 'pointer', color: C.ink }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: C.jadeSoft, display: 'grid', placeItems: 'center' }}><Icon n={w.icon} c={C.jade} /></div>
-                <div style={{ fontSize: 15, fontWeight: 700, marginTop: 8 }}>{w.t}</div>
-                <div style={{ fontSize: 12, color: C.muted, marginTop: 2, lineHeight: 1.45 }}>{w.d}</div>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+
+      {stage === 'choose' && (<>
+        <div>
+          <div style={{ fontSize: T.sm, color: C.mint, fontWeight: 700, letterSpacing: 1 }}>HKG · TRANSFER</div>
+          <h1 style={{ fontSize: T.xl, lineHeight: 1.3, margin: '6px 0 0' }}>{L('扫一下，开始转机', '掃一掃，開始轉機', 'Scan to start')}</h1>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          {W.map((w, i) => (
+            <button key={w.k} onClick={() => { setWay(w.k); setStage('scan'); }}
+              style={{ textAlign: 'left', border: `1px solid ${C.line}`, background: C.paper, borderRadius: 16, padding: '14px 12px', cursor: 'pointer', color: C.ink, display: 'flex', alignItems: 'center', gap: 10, animation: `rise .35s ${ease} ${i * 0.05}s both` }}>
+              <span style={{ width: 34, height: 34, borderRadius: 10, background: C.jadeSoft, display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon n={w.icon} s={18} c={C.jade} /></span>
+              <span style={{ fontSize: T.base, fontWeight: 600, lineHeight: 1.3 }}>{w.t}</span>
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setStage('pick')} style={{ border: 'none', background: 'none', color: C.jade, fontSize: T.sm, fontWeight: 600, cursor: 'pointer', justifySelf: 'start', padding: 0 }}>{L('手动输入航班', '手動輸入航班', 'Enter flights manually')} ›</button>
+      </>)}
+
       {stage === 'scan' && (
-        <div style={{ display: 'grid', justifyItems: 'center', gap: 14, paddingTop: 20 }}>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>{way === 'nfc' ? L('请将手机靠近立牌', '將部機靠近個牌', 'Hold your phone to the stand') : L('对准二维码', '對準 QR code', 'Point at the QR code')}</div>
-          <div style={{ position: 'relative', width: 220, height: 220, borderRadius: 18, overflow: 'hidden', border: `3px solid ${C.jade}`, padding: 16, background: '#fff' }}>
-            {way === 'nfc' ? <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}><Icon n="bolt" s={80} c={C.jade} w={1.6} /></div> : <QR />}
-            <div style={{ position: 'absolute', left: 10, right: 10, height: 3, background: C.mint, borderRadius: 2, animation: 'scanl 1.1s ease-in-out infinite alternate' }} />
+        <div style={{ display: 'grid', justifyItems: 'center', gap: 14 }}>
+          <div style={{ position: 'relative', width: 200, height: 200, borderRadius: 20, overflow: 'hidden', border: `3px solid ${C.jade}`, padding: 16, background: '#fff' }}>
+            {way === 'nfc' ? <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center' }}><Icon n="bolt" s={72} c={C.jade} w={1.6} /></div> : <QR />}
+            <div style={{ position: 'absolute', left: 10, right: 10, height: 3, background: C.mint, borderRadius: 2, animation: 'scanl 1s ease-in-out infinite alternate' }} />
+            <style>{'@keyframes scanl{0%{top:6%}100%{top:90%}}'}</style>
           </div>
-          <div style={{ fontSize: 13, color: C.muted }}>{label} · {L('识别中…', '識別緊…', 'Reading…')}</div>
-          <button style={btn('ghost')} onClick={() => setStage('choose')}>{L('换一种方式', '轉個方法', 'Try another way')}</button>
+          <div style={{ fontSize: T.sm, color: C.muted }}>{label}</div>
         </div>
       )}
+
       {stage === 'pick' && (
         <div style={{ display: 'grid', gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 13, color: C.muted }}>Hong Kong International Airport · {L('中转', '轉機', 'Transfer')}</div>
-            <div style={{ fontSize: 20, fontWeight: 800, marginTop: 2 }}>{L('选择你的航班', '揀你嘅航班', 'Choose your flights')}</div>
-            <div style={{ fontSize: 13, color: C.muted, marginTop: 4, lineHeight: 1.5 }}>{link.status === 'bad' ? L('二维码里的航班信息无法识别，请选择或输入你的航班。', 'QR code 入面嘅航班資料認唔到，請揀或者輸入你嘅航班。', 'We could not read the flights in this code. Please pick or enter them.') : L('请选择或输入刚乘坐和接下来要转乘的航班。', '請揀或者輸入啱啱搭同埋跟住要轉嘅航班。', 'Pick or enter the flight you arrived on and your next flight.')}</div>
-          </div>
-          <div>
-            <label htmlFor="fq" style={{ fontSize: 12, color: C.muted }}>{L('搜索航班号或城市', '搵航班號或者城市', 'Search flight or city')}</label>
-            <input id="fq" value={q} onChange={(e) => setQ(e.target.value)} placeholder={L('例如 CX715 或 新加坡', '例如 CX715 或者 新加坡', 'e.g. CX715 or Singapore')}
-              style={{ display: 'block', width: '100%', marginTop: 4, height: 38, borderRadius: 10, border: `1px solid ${C.line}`, padding: '0 12px', fontSize: 14, fontFamily: 'inherit', background: C.paper, color: C.ink }} />
-          </div>
-          <Step n={1} title={L('刚乘坐的航班', '啱啱搭嘅航班', 'Arrived on')} done={!!inSel} />
+          <div style={{ fontSize: T.lg, fontWeight: 800 }}>{link.status === 'bad' ? L('二维码无法识别，请选择航班', '認唔到 QR code，請揀航班', 'Code unreadable — pick your flights') : L('你的航班', '你嘅航班', 'Your flights')}</div>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={L('搜索航班号或城市', '搵航班號或者城市', 'Search flight or city')} aria-label="search" style={fld} />
+          <Step n={1} title={L('刚乘坐', '啱啱搭', 'Arrived on')} done={!!a} />
           <div style={{ display: 'grid', gap: 6 }}>
-            {arrivals.map((f) => <Choice key={f.no} on={inSel?.no === f.no} onClick={() => setInSel(f)} a={`${f.no} ${city(f.fromCode)}`} b={`${L('抵达', '到達', 'arr')} ${f.arr}`} sub={f.status === 'landed' ? L('已落地', '已經落地', 'Landed') : L('即将落地', '就嚟落地', 'Landing soon')} />)}
-            {!arrivals.length && <div style={{ fontSize: 13, color: C.muted }}>{L('没有匹配的到港航班', '搵唔到到港航班', 'No matching arrivals')}</div>}
+            {arrivals.map((f) => <Choice key={f.no} on={inSel?.no === f.no} onClick={() => setInSel(f)} a={f.no} c={city(f.fromCode)} b={f.arr} />)}
           </div>
-          <Step n={2} title={L('接下来转乘的航班', '跟住轉嘅航班', 'Connecting to')} done={!!outSel} />
-          <div style={{ display: 'grid', gap: 6, opacity: inSel ? 1 : 0.5, pointerEvents: inSel ? 'auto' : 'none' }}>
-            {departures.map((f) => <Choice key={f.no} on={outSel?.no === f.no} onClick={() => setOutSel(f)} a={`${f.no} ${city(f.toCode)}`} b={`${L('起飞', '起飛', 'dep')} ${hm(f.dep)}`} sub={`${f.miles} Asia Miles`} />)}
-            {!departures.length && <div style={{ fontSize: 13, color: C.muted }}>{L('没有匹配的离港航班', '搵唔到離港航班', 'No matching departures')}</div>}
+          <Step n={2} title={L('转乘', '轉搭', 'Connecting to')} done={!!d} />
+          <div style={{ display: 'grid', gap: 6, opacity: a ? 1 : 0.45, pointerEvents: a ? 'auto' : 'none', transition: 'opacity .25s' }}>
+            {departures.map((f) => <Choice key={f.no} on={outSel?.no === f.no} onClick={() => setOutSel(f)} a={f.no} c={city(f.toCode)} b={hm(f.dep)} />)}
           </div>
-          <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{L('列表里没有？直接输入航班号', '列表冇？直接輸入航班號', 'Not listed? Type the flight numbers')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <label style={{ fontSize: 12, color: C.muted }}>{L('到港航班', '到港航班', 'Arrived on')}
-              <input value={inNo} onChange={(e) => { setInNo(e.target.value.toUpperCase()); setInSel(null); }} placeholder="CX959" style={fld} /></label>
-            <label style={{ fontSize: 12, color: C.muted }}>{L('离港航班', '離港航班', 'Next flight')}
-              <input value={outNo} onChange={(e) => { setOutNo(e.target.value.toUpperCase()); setOutSel(null); }} placeholder="CX715" style={fld} /></label>
+            <input value={inNo} onChange={(e) => { setInNo(e.target.value.toUpperCase()); setInSel(null); }} placeholder={L('到港 如 CX959', '到港 例如 CX959', 'In, e.g. CX959')} style={{ ...fld, fontFamily: mono }} />
+            <input value={outNo} onChange={(e) => { setOutNo(e.target.value.toUpperCase()); setOutSel(null); }} placeholder={L('离港 如 CX715', '離港 例如 CX715', 'Out, e.g. CX715')} style={{ ...fld, fontFamily: mono }} />
           </div>
-          {(() => {
-            const ok = /^[A-Z0-9]{2}\d{1,4}$/;
-            const a = inSel ?? (ok.test(inNo) ? ({ no: inNo, from: '', fromCode: '', arr: '--:--', status: 'landed' } as InFlight) : null);
-            const d = outSel ?? (ok.test(outNo) ? ({ no: outNo, to: '', toCode: '', dep: 20 * 60, miles: 0 } as OutFlight) : null);
-            return (
-              <button disabled={!a || !d} style={{ ...btn(), width: '100%', padding: '12px 14px', fontSize: 15, opacity: a && d ? 1 : 0.5 }}
-                onClick={() => { if (a && d) { setFlights(a, d); setStage('ok'); } }}>{L('确认航班', '確認航班', 'Confirm flights')}</button>
-            );
-          })()}
+          <button disabled={!a || !d} style={{ ...btn(), width: '100%', padding: '12px', opacity: a && d ? 1 : 0.45 }}
+            onClick={() => { if (a && d) { if (!inSel && !outSel && !inNo && !outNo) resetFlights(); setFlights(a, d); afterFlights(); } }}>{L('下一步', '下一步', 'Next')}</button>
         </div>
       )}
+
+      {stage === 'bag' && (
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: T.lg, fontWeight: 800 }}>{L('你的行李', '你嘅行李', 'Your checked bags')}</div>
+            <div style={{ fontSize: T.sm, color: C.muted, marginTop: 4 }}>{L('看行李牌上的目的地', '睇行李牌上面嘅目的地', 'Check the destination on your bag tag')}</div>
+          </div>
+          <BagOpt icon="suitcase" title={L(`直挂到 ${city(FLIGHT.toCode) || FLIGHT.outNo}`, `直掛去 ${city(FLIGHT.toCode) || FLIGHT.outNo}`, `Through to ${city(FLIGHT.toCode) || FLIGHT.outNo}`)} sub={L('不取行李，直接转机安检', '唔使攞行李，直接轉機安檢', 'No reclaim · straight to transfer security')} onClick={() => { setBag('ok'); setStage('ok'); }} />
+          <BagOpt icon="passport" title={L('只挂到香港', '只係掛到香港', 'Only to Hong Kong')} sub={L('需入境、取行李、重新值机安检', '要入境、攞行李、再登記同安檢', 'Enter HK, reclaim, check in again')} onClick={() => { setBag('immig'); setStage('ok'); }} />
+        </div>
+      )}
+
       {stage === 'ok' && (
-        <div style={{ display: 'grid', gap: 14, paddingTop: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 22, background: C.jadeSoft, display: 'grid', placeItems: 'center', animation: 'pop .4s ease' }}><Icon n="check" s={26} c={C.jade} w={2.6} /></div>
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 800 }}>{needsPick ? L('已确认你的航班', '確認咗你嘅航班', 'Flights confirmed') : L('已识别你的行程', '認到你嘅行程', 'Trip found')}</div>
-              <div style={{ fontSize: 13, color: C.muted }}>{label}</div>
-            </div>
+        <div style={{ display: 'grid', gap: 14, justifyItems: 'center' }}>
+          <div style={{ width: 56, height: 56, borderRadius: 28, background: C.jade, display: 'grid', placeItems: 'center', animation: `pop .35s ${ease}` }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5 9-10" strokeDasharray="60" style={{ animation: 'draw .5s ease .1s both' }} /></svg>
           </div>
-          <div style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 16, padding: 14, display: 'grid', gap: 10 }}>
-            <Row a={`${FLIGHT.inNo} ${city(FLIGHT.fromCode)}`} b={`${L('抵达', '到達', 'arr')} ${FLIGHT.arr}`} sub={`${L('已落地', '已經落地', 'Landed')} · HKG ${info.term || 'T1'}`} />
-            <div style={{ borderTop: `1px dashed ${C.line}` }} />
-            <Row a={`${FLIGHT.outNo} ${city(FLIGHT.toCode)}`} b={`${L('起飞', '起飛', 'dep')} ${hm(FLIGHT.dep)}`} sub={`${info.gate ? `Gate ${info.gate} · ` : ''}${info.bag === 'unknown' ? L('行李状态待确认', '行李未確認', 'Baggage to confirm') : L('行李已直挂', '行李已經直掛', 'Bags checked through')}`} />
+          <div style={{ width: '100%', background: C.paper, borderRadius: 18, padding: '14px 16px', display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 8, boxShadow: '0 6px 20px rgba(0,60,58,.08)', animation: `rise .4s ${ease} .1s both` }}>
+            <End no={FLIGHT.inNo} code={FLIGHT.fromCode} t={FLIGHT.arr} />
+            <span style={{ color: C.faint, fontSize: T.sm, fontWeight: 700 }}>HKG</span>
+            <End no={FLIGHT.outNo} code={FLIGHT.toCode} t={hm(FLIGHT.dep)} right />
           </div>
-          <button style={{ ...btn(), width: '100%', padding: '12px 14px', fontSize: 15 }} onClick={finish}>{link.status === 'ok' ? L('正在进入转机指引…', '開緊轉機指引…', 'Opening your guide…') : L('进入转机指引', '開始轉機指引', 'Start guide')}</button>
+          <div style={{ fontSize: T.sm, color: C.muted, animation: `fade .4s ease .25s both` }}>{bag === 'immig' ? L('行李到香港 · 已规划入境路线', '行李到香港 · 已排好入境路線', 'Bags end in HK · entry route planned') : L('行李已直挂', '行李已經直掛', 'Bags checked through')}</div>
         </div>
       )}
     </div>
   );
 };
-const Step = ({ n, title, done }: { n: number; title: string; done: boolean }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-    <span style={{ width: 22, height: 22, borderRadius: 11, background: done ? C.jade : C.jadeSoft, color: done ? '#fff' : C.jade, fontSize: 12, fontWeight: 700, display: 'grid', placeItems: 'center' }}>{done ? '✓' : n}</span>
-    <strong style={{ fontSize: 15 }}>{title}</strong>
+
+const Pulse = ({ icon }: { icon: string }) => (
+  <div style={{ position: 'relative', width: 96, height: 96, borderRadius: 48, background: C.jadeSoft, display: 'grid', placeItems: 'center' }}>
+    <div style={{ position: 'absolute', inset: 0, borderRadius: 48, border: `2px solid ${C.jade}`, animation: 'ring 1.1s ease-out infinite' }} />
+    <Icon n={icon} s={42} c={C.jade} w={1.8} />
   </div>
 );
-const Choice = ({ on, onClick, a, b, sub }: { on: boolean; onClick: () => void; a: string; b: string; sub: string }) => (
-  <button onClick={onClick} aria-pressed={on} style={{ textAlign: 'left', width: '100%', border: `1.5px solid ${on ? C.jade : C.line}`, background: on ? C.jadeSoft : C.paper, borderRadius: 12, padding: '9px 12px', cursor: 'pointer', color: C.ink }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><strong style={{ fontSize: 14 }}>{a}</strong><span style={{ fontFamily: mono, fontSize: 13, fontWeight: 700, color: C.jade }}>{b}</span></div>
-    <div style={{ fontSize: 12, color: C.muted, marginTop: 1 }}>{sub}</div>
+const End = ({ no, code, t, right }: { no: string; code: string; t: string; right?: boolean }) => (
+  <div style={{ textAlign: right ? 'right' : 'left', minWidth: 0 }}>
+    <div style={{ fontFamily: mono, fontSize: T.lg, fontWeight: 700 }}>{code || '—'}</div>
+    <div style={{ fontSize: T.xs, color: C.muted, marginTop: 2 }}>{no} · {t}</div>
+  </div>
+);
+const BagOpt = ({ icon, title, sub, onClick }: { icon: string; title: string; sub: string; onClick: () => void }) => (
+  <button onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', border: `1px solid ${C.line}`, background: C.paper, borderRadius: 16, padding: 14, cursor: 'pointer', color: C.ink }}>
+    <span style={{ width: 40, height: 40, borderRadius: 12, background: C.jadeSoft, display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon n={icon} c={C.jade} /></span>
+    <span style={{ flex: 1, minWidth: 0 }}><span style={{ display: 'block', fontSize: T.md, fontWeight: 700 }}>{title}</span><span style={{ display: 'block', fontSize: T.sm, color: C.muted, marginTop: 2 }}>{sub}</span></span>
+    <Icon n="chev" s={16} c={C.faint} />
   </button>
 );
-const Row = ({ a, b, sub }: { a: string; b: string; sub: string }) => (
-  <div>
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><strong style={{ fontSize: 15 }}>{a}</strong><span style={{ fontFamily: mono, fontSize: 14, fontWeight: 700, color: C.jade }}>{b}</span></div>
-    <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{sub}</div>
+const Step = ({ n, title, done }: { n: number; title: string; done: boolean }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <span style={{ width: 20, height: 20, borderRadius: 10, background: done ? C.jade : C.jadeSoft, color: done ? '#fff' : C.jade, fontSize: T.xs, fontWeight: 700, display: 'grid', placeItems: 'center', transition: 'background .2s' }}>{done ? '✓' : n}</span>
+    <strong style={{ fontSize: T.base }}>{title}</strong>
   </div>
 );
-
-const fld: React.CSSProperties = { display: 'block', width: '100%', marginTop: 4, height: 38, borderRadius: 10, border: `1px solid ${C.line}`, padding: '0 12px', fontSize: 14, fontFamily: 'ui-monospace, Menlo, monospace', background: C.paper, color: C.ink };
+const Choice = ({ on, onClick, a, b, c }: { on: boolean; onClick: () => void; a: string; b: string; c: string }) => (
+  <button onClick={onClick} aria-pressed={on} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: `1.5px solid ${on ? C.jade : C.line}`, background: on ? C.jadeSoft : C.paper, borderRadius: 12, padding: '10px 12px', cursor: 'pointer', color: C.ink, transition: 'background .15s, border-color .15s' }}>
+    <strong style={{ fontFamily: mono, fontSize: T.base, width: 56, textAlign: 'left' }}>{a}</strong>
+    <span style={{ flex: 1, textAlign: 'left', fontSize: T.base }}>{c}</span>
+    <span style={{ fontFamily: mono, fontSize: T.sm, fontWeight: 700, color: C.jade }}>{b}</span>
+  </button>
+);
+const fld: React.CSSProperties = { display: 'block', width: '100%', height: 40, borderRadius: 12, border: `1px solid ${C.line}`, padding: '0 12px', fontSize: T.base, fontFamily: 'inherit', background: C.paper, color: C.ink };

@@ -19,7 +19,7 @@ export const MapView = ({ t, onArrive }: { t: Trip; onArrive: (id: string) => vo
   useLang();
   const targetId = targetOf(t);
   const { r, leg: cur, legIdx: leg, prog, to, key } = useLeg(t, targetId);
-  const fromId = t.atSec ? 'arr' : t.here;
+  const fromId = t.atSec ? t.preFrom : t.here;
   const here = ALL[fromId], target = ALL[to];
   const [running, setRunning] = useState(false);
   const [view, setView] = useState<Floor>(cur?.floor ?? here?.floor ?? 'L5');
@@ -64,7 +64,7 @@ export const MapView = ({ t, onArrive }: { t: Trip; onArrive: (id: string) => vo
         const rank = (id: string) => (id === to ? 0 : t.has(id) ? 1 : 2);
         const ps = PLACES.filter((p) => p.floor === f && t.visible(p)).sort((a, b) => rank(a.id) - rank(b.id));
         const boxes: { x1: number; y1: number; x2: number; y2: number }[] = [];
-        Object.entries(ALL).filter(([id, n]) => n.floor === f && (id.startsWith('g') || id === 'sec')).forEach(([id, n]) => {
+        Object.entries(ALL).filter(([id, n]) => n.floor === f && (id.startsWith('g') || t.steps.includes(id))).forEach(([id, n]) => {
           const w = nameOf(id).length * 9; boxes.push({ x1: px(n.x) - w / 2, y1: py(n.y) - 21, x2: px(n.x) + w / 2, y2: py(n.y) + 6 });
         });
         if (crossing) boxes.push({ x1: px(LIFT.x) - 13, y1: py(LIFT.y) - 13, x2: px(LIFT.x) + 13, y2: py(LIFT.y) + 28 });
@@ -89,9 +89,9 @@ export const MapView = ({ t, onArrive }: { t: Trip; onArrive: (id: string) => vo
           );
         });
       })()}
-      {Object.entries(ALL).filter(([id, n]) => n.floor === f && (id.startsWith('g') || id === 'sec')).map(([id, n]) => (
+      {Object.entries(ALL).filter(([id, n]) => n.floor === f && (id.startsWith('g') || t.steps.includes(id))).map(([id, n]) => (
         <g key={id} transform={`translate(${px(n.x)},${py(n.y)})`}>
-          <rect x="-5" y="-5" width="10" height="10" rx="2" fill={id === t.gate || id === 'sec' ? C.jade : '#9DB8B4'} />
+          <rect x="-5" y="-5" width="10" height="10" rx="2" fill={id === t.gate || id === to ? C.jade : '#9DB8B4'} />
           <text y="-9" fontSize="11" textAnchor="middle" fill="#2F403E" stroke="#fff" strokeWidth="3" paintOrder="stroke">{nameOf(id)}</text>
         </g>
       ))}
@@ -120,20 +120,20 @@ export const MapView = ({ t, onArrive }: { t: Trip; onArrive: (id: string) => vo
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', position: 'relative' }}>
-      <div style={{ background: C.jade, color: '#fff', padding: '4px 14px 12px', display: 'flex', gap: 8, alignItems: 'center' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100%', position: 'relative' }}>
+      <div style={{ background: `linear-gradient(160deg, ${C.jade}, ${C.jadeDeep})`, color: '#fff', padding: '6px 14px 12px', margin: '10px 12px 0', borderRadius: 20, display: 'flex', gap: 8, alignItems: 'center', boxShadow: '0 8px 22px rgba(0,73,74,.2)' }}>
         <div style={{ flexShrink: 0, margin: '0 -10px 0 -14px' }}>
           <Arrow3D size={96} tilt={compass.state === 'on' ? compass.tilt : 58} mode={mode} angle={angle} />
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ fontFamily: mono, fontSize: 24, fontWeight: 700, lineHeight: 1.1 }}>{cur ? (mode === 'walk' ? `${Math.round(cur.meters * (1 - prog))} ${L('米', '米', 'm')}` : mode === 'up' ? L('上扶梯', '上扶手電梯', 'Escalator up') : L('下扶梯', '落扶手電梯', 'Escalator down')) : L('已到达', '到咗', 'Arrived')}</div>
+          <div key={leg + '-' + mode} style={{ fontFamily: mono, fontSize: 24, fontWeight: 700, lineHeight: 1.1, animation: 'rise .3s ease' }}>{cur ? (mode === 'walk' ? `${Math.round(cur.meters * (1 - prog))} ${L('米', '米', 'm')}` : mode === 'up' ? L('上扶梯', '上扶手電梯', 'Escalator up') : L('下扶梯', '落扶手電梯', 'Escalator down')) : L('已到达', '到咗', 'Arrived')}</div>
           <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{cur?.text ?? nameOf(to)}</div>
           {r.legs[leg + 1] && <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>{L('然后', '跟住', 'Then')} {r.legs[leg + 1].text}</div>}
           <div style={{ marginTop: 6 }}><SensorHint dark /></div>
         </div>
       </div>
 
-      <div style={{ background: '#E7EEEC', padding: '4px 0 6px', position: 'relative' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '6px 0', position: 'relative', minHeight: 0 }}>
         <ZoomArea>
           <div style={{ display: 'grid', gridTemplateColumns: crossing ? 'minmax(0,1fr) auto minmax(0,1fr)' : 'minmax(0,1fr)', alignItems: 'center', padding: '0 6px' }}>
             {floors.map((f, i) => {
@@ -147,12 +147,12 @@ export const MapView = ({ t, onArrive }: { t: Trip; onArrive: (id: string) => vo
                     </div>
                   )}
                   <div onClick={() => setView(f)} role="button" aria-label={floorLabel(f)}
-                    style={{ position: 'relative', height: crossing ? 150 : 200, perspective: 700, overflow: 'hidden', cursor: 'pointer', minWidth: 0 }}>
+                    style={{ position: 'relative', height: crossing ? 190 : 270, perspective: 700, overflow: 'hidden', cursor: 'pointer', minWidth: 0 }}>
                     <div style={{ position: 'absolute', left: 4, top: 2, zIndex: 2, border: `1px solid ${act ? C.jade : C.line}`, background: act ? C.jade : 'rgba(255,255,255,.94)', color: act ? '#fff' : C.ink, borderRadius: 7, padding: '2px 7px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
                       {f === here.floor ? L('当前 ', '而家 ', 'Now ') : L('目的地 ', '目的地 ', 'To ')}{f}
                     </div>
                     <div style={{ position: 'absolute', left: '50%', top: '50%', width: 290, height: 188, marginLeft: -145, marginTop: -88,
-                      transform: crossing ? 'scale(.6) rotateX(48deg) rotateZ(-16deg)' : 'scale(.92) rotateX(46deg) rotateZ(-18deg)',
+                      transform: crossing ? 'scale(.68) rotateX(48deg) rotateZ(-16deg)' : 'scale(1.05) rotateX(46deg) rotateZ(-18deg)',
                       opacity: act ? 1 : 0.55, transition: 'opacity .4s', borderRadius: 14, boxShadow: act ? '0 16px 26px rgba(0,60,58,.22)' : 'none' }}>
                       {floorSvg(f)}
                     </div>
@@ -164,7 +164,7 @@ export const MapView = ({ t, onArrive }: { t: Trip; onArrive: (id: string) => vo
         </ZoomArea>
       </div>
 
-      <div style={{ background: C.paper, borderTop: `1px solid ${C.line}`, padding: '12px 14px', display: 'grid', gap: 10 }}>
+      <div style={{ background: C.paper, borderRadius: '20px 20px 0 0', boxShadow: '0 -6px 20px rgba(0,60,58,.06)', padding: '14px 16px 14px', display: 'grid', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <strong style={{ fontSize: 16, flex: 1, minWidth: 0 }}>{nameOf(to)}</strong>
           <span style={{ fontFamily: mono, fontSize: 14, fontWeight: 700, color: C.jade }}>{L('步行约', '行大約', 'walk')} {dur(Math.max(1, Math.ceil(remain / t.pace)))}</span>

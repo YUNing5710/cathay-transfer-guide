@@ -24,7 +24,7 @@ export const Boarded = ({ t }: { t: Trip }) => {
       <section style={{ background: C.paper, border: `1px solid ${C.line}`, borderRadius: 14, padding: 14 }}>
         <strong style={{ fontSize: 14 }}>{L('本次中转时间线', '今次轉機時間線', 'Your transfer')}</strong>
         <ol style={{ listStyle: 'none', margin: '10px 0 0', padding: 0, display: 'grid', gap: 8 }}>
-          <TL time={FLIGHT.arr} title={`${FLIGHT.inNo} · ${nameOf('sec')}`} />
+          <TL time={FLIGHT.arr} title={`${FLIGHT.inNo} · ${nameOf(t.steps[t.steps.length - 1])}`} />
           {done.map((p) => <TL key={p.uid} time={hm((p.doneAt ?? t.clock) - (p.used ?? 0))} title={nameOf(p.id)} sub={`${p.used ?? 0} min${p.orderText ? ' · ' + p.orderText : ''}`} />)}
           <TL time={hm(t.clock)} title={nameOf(t.gate)} last />
         </ol>

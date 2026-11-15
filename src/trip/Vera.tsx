@@ -180,7 +180,7 @@ export const VeraSheet = ({ t, onClose, openOrder, goMap, openHelp, openMember, 
           {speechNote}
           <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <button onClick={() => startListen(false)} style={{ ...btn('ghost'), padding: '4px 10px', fontSize: 12 }}>{L('再试一次', '再試多次', 'Try again')}</button>
-            <button onClick={() => { const s = voiceSamples(); send(s[sent.current % s.length]); }} style={{ ...btn('ghost'), padding: '4px 10px', fontSize: 12 }}>{L('用演示语句', '用示範句', 'Use a sample')}</button>
+            <button onClick={() => { const s = voiceSamples(); send(s[sent.current % s.length]); }} style={{ ...btn('ghost'), padding: '4px 10px', fontSize: 12 }}>{L('试试这句', '試吓呢句', 'Try a sample')}</button>
           </div>
         </div>
       )}

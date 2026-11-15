@@ -26,7 +26,7 @@ export const Progress = ({ t }: { t: Trip }) => {
   const planEnd = pct(t.tl.end + t.tl.toGate);
   const G = '#2E9E6B', N = '#D3DAD8';
   const f = 2;
-  const stops: string[] = [`${G} 0%`, `${G} ${Math.max(0, now - f)}%`];
+  void pname; const stops: string[] = [`${G} 0%`, `${G} ${Math.max(0, now - f)}%`];
   if (planEnd > now + 0.5) {
     const a = now + f, b = Math.max(a, planEnd - f);
     for (let p = a; p < b; p += 4) stops.push(`${amber(p)} ${p.toFixed(1)}%`);
@@ -37,26 +37,20 @@ export const Progress = ({ t }: { t: Trip }) => {
   return (
     <div style={{ marginTop: 10 }}>
       <div style={{ position: 'relative', paddingTop: 20 }}>
-        <div role="img" aria-label={L('中转时间进度', '轉機時間進度', 'Transfer time progress')} style={{ height: 10, borderRadius: 5, background: `linear-gradient(90deg, ${stops.join(', ')})` }} />
+        <div role="img" aria-label={L('中转时间进度', '轉機時間進度', 'Transfer time progress')} style={{ height: 8, borderRadius: 4, transition: 'background .4s', background: `linear-gradient(90deg, ${stops.join(', ')})` }} />
         {open.map((s, i) => (
           <div key={s.item.uid} title={`${pname(s.place)} ${hm(s.arrive)}`} style={{ position: 'absolute', left: `${pct(s.arrive)}%`, top: 0, transform: 'translateX(-50%)', display: 'grid', justifyItems: 'center' }}>
-            <span style={{ width: 16, height: 16, borderRadius: 8, fontSize: 10, fontWeight: 700, lineHeight: '16px', textAlign: 'center', background: '#7A5300', color: '#fff' }}>{i + 1}</span>
+            <span style={{ width: 16, height: 16, borderRadius: 8, fontSize: 10, fontWeight: 700, lineHeight: '16px', textAlign: 'center', background: C.gold, color: '#fff', boxShadow: '0 0 0 2px #fff' }}>{i + 1}</span>
             <span style={{ width: 2, height: 12, background: '#fff', marginTop: 1, borderRadius: 1, boxShadow: '0 0 0 1px rgba(0,0,0,.18)' }} />
           </div>
         ))}
         <div aria-hidden="true" style={{ position: 'absolute', left: `${now}%`, top: 16, transform: 'translateX(-50%)', width: 3, height: 18, borderRadius: 2, background: C.ink }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: C.muted, marginTop: 4, fontFamily: mono }}>
-        <span>{hm(start)} {L('落地', '落地', 'landed')}</span><span>{hm(endT)} {L('登机', '登機', 'boarding')}</span>
+        <span>{hm(start)} {L('落地', '落地', 'landed')}</span><span style={{ display: 'flex', gap: 10 }}><Key c={Y} l={L('已安排', '已排', 'Planned')} /><span>{hm(endT)} {L('登机', '登機', 'boarding')}</span></span>
       </div>
-      <div style={{ display: 'flex', gap: 12, fontSize: 11, color: C.muted, marginTop: 2, flexWrap: 'wrap' }}>
-        <Key c={G} l={L('已过去', '過咗', 'Passed')} /><Key c={Y} l={L('已安排', '已排', 'Planned')} /><Key c={N} l={L('未安排', '未排', 'Free')} />
-      </div>
-      {open.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 10px', fontSize: 11, color: C.muted, marginTop: 4 }}>
-          {open.map((s, i) => <span key={s.item.uid}>{i + 1} {pname(s.place)} {hm(s.arrive)}</span>)}
-        </div>
-      )}
+
+
     </div>
   );
 };
