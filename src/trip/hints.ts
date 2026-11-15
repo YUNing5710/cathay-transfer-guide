@@ -6,8 +6,8 @@ import { Trip } from './store';
 /** A bubble carries the question that is auto-sent when the user taps it. */
 export interface Hint { text: string; ask: string }
 
-const IDLE_MS = 22000;   // only speak after this long with no taps
-const GAP_MS = 60000;    // and never more often than this
+const IDLE_MS = 45000;   // only speak after this long with no taps
+const GAP_MS = 90000;    // and never more often than this
 
 /**
  * Vera speaks up only when the passenger has gone quiet and the screen is calm:

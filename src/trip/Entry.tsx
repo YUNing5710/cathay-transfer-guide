@@ -46,9 +46,9 @@ export const Entry = ({ onDone }: { onDone: (info: EntryInfo) => void }) => {
   const afterFlights = () => setStage(bag ? 'ok' : 'bag');
 
   useEffect(() => {
-    if (stage === 'link' && link.inF && link.outF) { setFlights(link.inF, link.outF); const a = setTimeout(afterFlights, 1100); return () => clearTimeout(a); }
-    if (stage === 'scan') { const a = setTimeout(() => setStage('pick'), 1300); return () => clearTimeout(a); }
-    if (stage === 'ok' && bag) { const a = setTimeout(() => finish(bag), 1300); return () => clearTimeout(a); }
+    if (stage === 'link' && link.inF && link.outF) { setFlights(link.inF, link.outF); const a = setTimeout(afterFlights, 750); return () => clearTimeout(a); }
+    if (stage === 'scan') { const a = setTimeout(() => setStage('pick'), 900); return () => clearTimeout(a); }
+    if (stage === 'ok' && bag) { const a = setTimeout(() => finish(bag), 850); return () => clearTimeout(a); }
   }, [stage]);
 
   const match = (s: string) => !q.trim() || s.toLowerCase().includes(q.trim().toLowerCase());
@@ -105,11 +105,11 @@ export const Entry = ({ onDone }: { onDone: (info: EntryInfo) => void }) => {
           <div style={{ fontSize: T.lg, fontWeight: 800 }}>{link.status === 'bad' ? L('二维码无法识别，请选择航班', '認唔到 QR code，請揀航班', 'Code unreadable — pick your flights') : L('你的航班', '你嘅航班', 'Your flights')}</div>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={L('搜索航班号或城市', '搵航班號或者城市', 'Search flight or city')} aria-label="search" style={fld} />
           <Step n={1} title={L('刚乘坐', '啱啱搭', 'Arrived on')} done={!!a} />
-          <div style={{ display: 'grid', gap: 6 }}>
+          <div className="noscroll" style={rail}>
             {arrivals.map((f) => <Choice key={f.no} on={inSel?.no === f.no} onClick={() => setInSel(f)} a={f.no} c={city(f.fromCode)} b={f.arr} />)}
           </div>
           <Step n={2} title={L('转乘', '轉搭', 'Connecting to')} done={!!d} />
-          <div style={{ display: 'grid', gap: 6, opacity: a ? 1 : 0.45, pointerEvents: a ? 'auto' : 'none', transition: 'opacity .25s' }}>
+          <div className="noscroll" style={{ ...rail, opacity: a ? 1 : 0.45, pointerEvents: a ? 'auto' : 'none', transition: 'opacity .25s' }}>
             {departures.map((f) => <Choice key={f.no} on={outSel?.no === f.no} onClick={() => setOutSel(f)} a={f.no} c={city(f.toCode)} b={hm(f.dep)} />)}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -174,11 +174,13 @@ const Step = ({ n, title, done }: { n: number; title: string; done: boolean }) =
     <strong style={{ fontSize: T.base }}>{title}</strong>
   </div>
 );
+/** Swipeable boarding-pass stubs: one row, snap scrolling, never a long list. */
+const rail: React.CSSProperties = { display: 'flex', gap: 8, overflowX: 'auto', scrollSnapType: 'x mandatory', margin: '0 -18px', padding: '2px 18px 4px', transition: 'opacity .25s' };
 const Choice = ({ on, onClick, a, b, c }: { on: boolean; onClick: () => void; a: string; b: string; c: string }) => (
-  <button onClick={onClick} aria-pressed={on} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: `1.5px solid ${on ? C.jade : C.line}`, background: on ? C.jadeSoft : C.paper, borderRadius: 12, padding: '10px 12px', cursor: 'pointer', color: C.ink, transition: 'background .15s, border-color .15s' }}>
-    <strong style={{ fontFamily: mono, fontSize: T.base, width: 56, textAlign: 'left' }}>{a}</strong>
-    <span style={{ flex: 1, textAlign: 'left', fontSize: T.base }}>{c}</span>
-    <span style={{ fontFamily: mono, fontSize: T.sm, fontWeight: 700, color: C.jade }}>{b}</span>
+  <button onClick={onClick} aria-pressed={on} style={{ flex: '0 0 auto', width: 118, scrollSnapAlign: 'start', display: 'grid', gap: 2, textAlign: 'left', border: `1.5px solid ${on ? C.jade : C.line}`, background: on ? `linear-gradient(160deg, ${C.jade}, ${C.jadeDeep})` : C.paper, color: on ? '#fff' : C.ink, borderRadius: 16, padding: '10px 12px', cursor: 'pointer', boxShadow: on ? '0 8px 18px rgba(0,63,64,.22)' : 'none', transform: on ? 'translateY(-2px)' : 'none', transition: `background .2s, color .2s, transform .25s ${ease}, box-shadow .25s` }}>
+    <span style={{ fontFamily: mono, fontSize: T.xs, opacity: 0.7 }}>{a}</span>
+    <strong style={{ fontSize: T.md, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c || '—'}</strong>
+    <span style={{ fontFamily: mono, fontSize: T.sm, fontWeight: 700, color: on ? '#9FE7DD' : C.jade }}>{b}</span>
   </button>
 );
 const fld: React.CSSProperties = { display: 'block', width: '100%', height: 40, borderRadius: 12, border: `1px solid ${C.line}`, padding: '0 12px', fontSize: T.base, fontFamily: 'inherit', background: C.paper, color: C.ink };

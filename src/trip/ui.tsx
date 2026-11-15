@@ -3,15 +3,15 @@ import { L } from './i18n';
 
 /** Palette: one brand green carries the hierarchy; gold only for miles; red only for time trouble. */
 export const C = {
-  ink: '#132120', muted: '#5C6C6A', faint: '#9AA8A6', line: '#E2E8E6', bg: '#F3F6F5', paper: '#FFFFFF',
-  jade: '#006564', jadeDeep: '#00494A', jadeSoft: '#E3F0EE', mint: '#2E9488', gold: '#8A5D00', goldSoft: '#FBF2DF',
+  ink: '#10201F', muted: '#5A6B69', faint: '#A0ADAB', line: '#E4EAE8', bg: '#F2F5F3', paper: '#FFFFFF',
+  jade: '#005D5B', jadeDeep: '#003F40', jadeSoft: '#E1EFEC', mint: '#2A9D8F', gold: '#9A6A0B', goldSoft: '#FAF1DE',
   red: '#B3261E', redSoft: '#FCEBE8', grey: '#EEF1F0',
 };
 /** Type scale — every size in the app comes from here. */
 export const T = { xs: 11, sm: 12, base: 14, md: 15, lg: 18, xl: 22, hero: 34 };
 export const R = { sm: 10, md: 14, lg: 20 };
-export const sans = '"PingFang SC", "PingFang HK", -apple-system, BlinkMacSystemFont, "Noto Sans SC", "Noto Sans TC", "Segoe UI", Roboto, sans-serif';
-export const mono = '"SF Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
+export const sans = 'Manrope, "Noto Sans SC", "Noto Sans TC", "PingFang SC", "PingFang HK", -apple-system, BlinkMacSystemFont, "Noto Sans SC", "Noto Sans TC", "Segoe UI", Roboto, sans-serif';
+export const mono = '"JetBrains Mono", "SF Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
 export const ease = 'cubic-bezier(.2,.8,.2,1)';
 
 export const btn = (kind: 'primary' | 'ghost' | 'danger' | 'soft' = 'primary'): React.CSSProperties => ({
@@ -26,7 +26,10 @@ export const card: React.CSSProperties = { background: C.paper, border: `1px sol
 /** Global keyframes and resets, injected once by App. */
 export const GLOBAL_CSS = `
 *,*::before,*::after{box-sizing:border-box}
-html,body{margin:0;padding:0;overflow-x:hidden;max-width:100%;-webkit-font-smoothing:antialiased}
+html,body{margin:0;padding:0;overflow-x:hidden;max-width:100%;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;font-feature-settings:'tnum' 1}
+h1,h2,strong{letter-spacing:-.01em}
+@keyframes ribbon{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 button{font-family:inherit;max-width:100%}
 button:active:not(:disabled){transform:scale(.97)}
 svg{max-width:100%}

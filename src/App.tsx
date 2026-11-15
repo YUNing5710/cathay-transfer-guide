@@ -70,7 +70,7 @@ export const App = () => {
 
   return (
     <div className="wwroot" style={{ fontFamily: sans, background: 'radial-gradient(120% 80% at 50% 0%, #E6EEEC 0%, #D3DDDA 100%)', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', overflowX: 'hidden', width: '100%' }}>
-      <style>{GLOBAL_CSS + '@media (min-width:480px){.wwframe{border-radius:30px;height:min(900px,calc(100vh - 32px))!important;margin:16px 0}}'}</style>
+      <style>{GLOBAL_CSS + '.wwframe{border-radius:22px;height:calc(100vh - 16px)!important;margin:8px}@media (min-width:480px){.wwframe{border-radius:30px;height:min(900px,calc(100vh - 32px))!important;margin:16px 0}}'}</style>
       <div className="wwframe" style={{ position: 'relative', width: '100%', maxWidth: 430, height: '100vh', maxHeight: 900, background: C.bg, color: C.ink, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 60px rgba(0,50,48,.18), 0 0 0 1px rgba(0,60,58,.08)' }}>
         <header style={{ background: C.paper, padding: '12px 14px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>

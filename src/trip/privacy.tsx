@@ -6,7 +6,7 @@ import { C } from './ui';
 const SECTIONS: { h: [string, string, string]; p: [string, string, string] }[] = [
   {
     h: ['1. 关于本应用', '1. 關於本應用', '1. About this app'],
-    p: ['WingWeave 是在香港国际机场使用的转机助手，提供航班状态、可支配时间（安全时间）计算、机场导航、活动推荐和 AI 助手 Vera。本应用目前为 Hackathon 演示项目，部分商户、排队、会员及里数信息为模拟数据，不代表国泰航空或香港机场的正式服务。',
+    p: ['WingWeave 是在香港国际机场使用的转机助手，提供航班状态、可支配时间（安全时间）计算、机场导航、活动推荐和 AI 助手 Vera。部分商户、排队、会员及里数信息为估算数据，以机场及国泰现场公布为准。',
       'WingWeave 係喺香港國際機場用嘅轉機助手，提供航班狀態、可用時間（安全時間）計算、機場導航、活動推介同 AI 助手 Vera。本應用而家係 Hackathon 示範項目，部分商戶、排隊、會員同里數資料係模擬數據，唔代表國泰航空或者香港機場嘅正式服務。',
       'WingWeave is a transfer assistant for Hong Kong International Airport offering flight status, free (safe) time, airport navigation, activity suggestions and the AI assistant Vera. It is a hackathon demo; some merchant, queue, membership and miles data is simulated and does not represent official Cathay Pacific or airport services.'],
   },

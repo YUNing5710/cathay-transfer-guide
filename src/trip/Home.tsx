@@ -166,15 +166,10 @@ export const Home = ({ t, goMap, openOrder, openHelp, arrive, goExplore }: { t: 
       {/* ---- one-tap route: a slim bar that unfolds ---- */}
       {showGen && (genOpen
         ? <RouteGen t={t} onClose={() => setGenOpen(false)} onExplore={goExplore} />
-        : <button onClick={() => setGenOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 10, border: `1px solid ${C.line}`, background: C.paper, borderRadius: R12, padding: '10px 12px', cursor: 'pointer', color: C.ink, textAlign: 'left', animation: `rise .3s ${ease}` }}>
-            <span style={{ width: 30, height: 30, borderRadius: 9, background: C.jadeSoft, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.jade} strokeWidth="2" strokeLinecap="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6" /></svg>
-            </span>
-            <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontSize: T.base, fontWeight: 700 }}>{L('一键规划顺路路线', '一撳排好順路路線', 'Plan a route for me')}</span>
-              <span style={{ display: 'block', fontSize: T.xs, color: C.muted }}>{L(`${dur(t.left)} 可用`, `有 ${dur(t.left)}`, `${dur(t.left)} to use`)}</span>
-            </span>
-            <span style={{ color: C.jade, fontSize: T.lg, fontWeight: 300 }}>›</span>
+        : <button onClick={() => setGenOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, border: 'none', borderRadius: 999, padding: '7px 8px 7px 14px', cursor: 'pointer', color: '#fff', textAlign: 'left', background: `linear-gradient(90deg, ${C.jade}, ${C.mint}, #C9A227, ${C.mint}, ${C.jade})`, backgroundSize: '200% 100%', animation: `rise .3s ${ease}, ribbon 9s linear infinite`, boxShadow: '0 6px 16px rgba(0,93,91,.18)' }}>
+            <span aria-hidden style={{ fontSize: T.md }}>✦</span>
+            <span style={{ flex: 1, minWidth: 0, fontSize: T.sm, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{L('一键规划顺路路线', '一撳排好順路路線', 'Plan a route for me')}</span>
+            <span style={{ fontFamily: mono, fontSize: T.xs, fontWeight: 700, background: 'rgba(255,255,255,.22)', borderRadius: 999, padding: '3px 9px', flexShrink: 0 }}>{dur(t.left)}</span>
           </button>)}
 
       <PlanList t={t} />
