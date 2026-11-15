@@ -18,7 +18,7 @@ export const Explore = ({ t, openOrder, goHome }: { t: Trip; openOrder: (id?: st
   useLang();
   const [cat, setCat] = useState<'全部' | Cat>('全部');
   const [ask, setAsk] = useState<Place | null>(null);
-  const [gen, setGen] = useState(false);
+  
   const list = PLACES.filter((p) => t.visible(p) && (cat === '全部' || p.cat === cat))
     .map((p) => ({ p, cost: t.costOf(p.id) }))
     .sort((a, b) => Number(!!b.p.partner) - Number(!!a.p.partner) || a.cost - b.cost);
@@ -36,9 +36,8 @@ export const Explore = ({ t, openOrder, goHome }: { t: Trip; openOrder: (id?: st
           <div style={{ fontSize: T.lg, fontWeight: 800 }}>{L('探索', '探索', 'Explore')}</div>
           <div style={{ fontSize: T.xs, color: C.muted }}>{t.canAdd ? L(`可用 ${dur(Math.max(0, t.left))} · 按顺路排序`, `有 ${dur(Math.max(0, t.left))} · 按順路排`, `${dur(Math.max(0, t.left))} free · nearest first`) : L('返回缓冲中，暂不可添加', '返程緩衝中，暫時加唔到', 'Return buffer — adding paused')}</div>
         </div>
-        {t.canAdd && !t.atSec && <button onClick={() => setGen(!gen)} aria-pressed={gen} style={{ ...btn(gen ? 'primary' : 'soft'), padding: '7px 12px', fontSize: T.sm }}>{L('一键规划', '一撳排好', 'Plan for me')}</button>}
       </div>
-      {gen && <RouteGen t={t} onAdded={goHome} onClose={() => setGen(false)} />}
+      {t.canAdd && !t.atSec && <RouteGen t={t} onAdded={goHome} />}
       <div style={{ ['--chip-fade' as string]: C.bg } as React.CSSProperties}>
         <Chips items={CATS.map((c) => ({ k: c, label: tr(CAT_LABEL[c]), on: cat === c }))} onPick={(k) => setCat(k as '全部' | Cat)} />
       </div>

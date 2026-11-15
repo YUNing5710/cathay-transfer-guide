@@ -33,7 +33,7 @@ export const Entry = ({ onDone }: { onDone: (info: EntryInfo) => void }) => {
   const [link] = useState<DeepLink>(() => readDeepLink());
   const fromLink = link.status === 'ok';
   const [way, setWay] = useState<Way>(() => ((['card', 'seat', 'nfc', 'app'] as Way[]).includes(link.src as Way) ? (link.src as Way) : 'card'));
-  const [stage, setStage] = useState<Stage>(fromLink ? 'link' : 'choose');
+  const [stage, setStage] = useState<Stage>(fromLink ? 'link' : 'pick');
   const [bag, setBag] = useState<Bag | null>(fromLink ? link.bag ?? null : null);
   const [inNo, setInNo] = useState(''); const [outNo, setOutNo] = useState('');
   const [inSel, setInSel] = useState<InFlight | null>(null);

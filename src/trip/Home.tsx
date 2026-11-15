@@ -61,9 +61,12 @@ export const Home = ({ t, goMap, openOrder, openHelp, arrive, goExplore }: { t: 
       {/* ---- the hero: where to go now ---- */}
       <section style={{ background: `linear-gradient(160deg, ${C.jade} 0%, ${C.jadeDeep} 100%)`, color: '#fff', borderRadius: 22, padding: '8px 16px 14px', boxShadow: '0 10px 28px rgba(0,73,74,.22)', position: 'relative', overflow: 'hidden' }}>
         <div aria-hidden style={{ position: 'absolute', right: -40, top: -40, width: 160, height: 160, borderRadius: 80, background: 'radial-gradient(closest-side, rgba(127,224,213,.18), transparent)' }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <div style={{ flexShrink: 0, margin: '0 -6px 0 -12px' }}><Arrow3D angle={angle} size={132} mode={mode} tilt={compass.state === 'on' ? compass.tilt : 58} /></div>
-          <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ display: 'grid', justifyItems: 'center', textAlign: 'center', gap: 2 }}>
+          <div style={{ position: 'relative', display: 'grid', placeItems: 'center', width: 150, height: 150 }}>
+            <div aria-hidden style={{ position: 'absolute', inset: 10, borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(255,255,255,.95), rgba(214,244,239,.55) 62%, rgba(255,255,255,0) 100%)', boxShadow: '0 0 0 1px rgba(255,255,255,.25), 0 10px 30px rgba(0,0,0,.18)' }} />
+            <div style={{ position: 'relative', filter: 'drop-shadow(0 6px 10px rgba(0,40,40,.35))' }}><Arrow3D angle={angle} size={136} mode={mode} tilt={compass.state === 'on' ? compass.tilt : 58} /></div>
+          </div>
+          <div style={{ minWidth: 0, width: '100%' }}>
             <div style={{ fontSize: T.xs, fontWeight: 700, letterSpacing: 0.6, opacity: 0.75 }}>
               {t.atSec ? (steps > 1 ? L(`入境转机 ${stepNo}/${steps}`, `入境轉機 ${stepNo}/${steps}`, `Re-entry ${stepNo}/${steps}`) : L('第一步', '第一步', 'First')) : urgent ? L('立即前往', '即刻去', 'Go now') : next ? L('下一站', '下一站', 'Next') : L('登机口', '閘口', 'Gate')}
             </div>
@@ -133,11 +136,20 @@ export const Home = ({ t, goMap, openOrder, openHelp, arrive, goExplore }: { t: 
         );
       })}
 
+      {/* ---- one-tap route: a slim bar that unfolds ---- */}
+      {showGen && (genOpen
+        ? <RouteGen t={t} onClose={() => setGenOpen(false)} onExplore={goExplore} />
+        : <button onClick={() => setGenOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, border: 'none', borderRadius: 999, padding: '7px 8px 7px 14px', cursor: 'pointer', color: '#fff', textAlign: 'left', background: `linear-gradient(90deg, ${C.jade}, ${C.mint}, #C9A227, ${C.mint}, ${C.jade})`, backgroundSize: '200% 100%', animation: `rise .3s ${ease}, ribbon 9s linear infinite`, boxShadow: '0 6px 16px rgba(0,93,91,.18)' }}>
+            <span aria-hidden style={{ fontSize: T.md }}>✦</span>
+            <span style={{ flex: 1, minWidth: 0, fontSize: T.sm, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{L('一键规划顺路路线', '一撳排好順路路線', 'Plan a route for me')}</span>
+            <span style={{ fontFamily: mono, fontSize: T.xs, fontWeight: 700, background: 'rgba(255,255,255,.22)', borderRadius: 999, padding: '3px 9px', flexShrink: 0 }}>{dur(t.left)}</span>
+          </button>)}
+
       {/* ---- time: the one number ---- */}
       <section style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <span style={{ fontSize: T.sm, color: C.muted }}>{L('可自由支配', '自由時間', 'Free time')}</span>
-          <span style={{ fontSize: T.xs, color: C.faint, fontFamily: mono }}>{L('现在', '而家', 'Now')} {hm(t.clock)}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ fontSize: T.xs, color: C.faint, fontFamily: mono }}>{L('现在', '而家', 'Now')} {hm(t.clock)}</span><button onClick={() => setWhy(!why)} aria-expanded={why} style={{ border: `1px solid ${C.line}`, background: why ? C.jadeSoft : C.paper, color: C.jade, fontSize: T.xs, fontWeight: 600, cursor: 'pointer', padding: '2px 8px', borderRadius: 999 }}>{why ? L('收起', '收埋', 'Hide') : L('怎么算的 ⓘ', '點計 ⓘ', 'How ⓘ')}</button></span>
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
           <div style={{ fontFamily: mono, fontSize: T.hero, fontWeight: 700, color, lineHeight: 1.15, transition: 'color .3s' }}>{dur(Math.max(0, t.free))}</div>
@@ -153,7 +165,6 @@ export const Home = ({ t, goMap, openOrder, openHelp, arrive, goExplore }: { t: 
           <span style={{ width: 6, height: 6, borderRadius: 3, background: '#2E9E6B', boxShadow: '0 0 0 3px rgba(46,158,107,.18)' }} />
           {t.live.out.no} {t.live.out.timeliness || t.live.out.status}{t.live.in.baggage ? ` · ${L('行李转盘', '行李轉盤', 'Belt')} ${t.live.in.baggage}` : ''}
         </div>}
-        <button onClick={() => setWhy(!why)} style={{ marginTop: 8, border: 'none', background: 'none', color: C.jade, fontSize: T.xs, fontWeight: 600, cursor: 'pointer', padding: 0 }}>{why ? L('收起', '收埋', 'Hide') : L('怎么算的', '點計㗎', 'How is this worked out')}</button>
         {why && (
           <div style={{ fontSize: T.xs, color: C.muted, background: C.bg, borderRadius: 10, padding: 10, marginTop: 6, lineHeight: 1.7, animation: `rise .25s ${ease}` }}>
             <div>{L(`登机 ${hm(t.boardTime)} − 返回缓冲 30 分${t.pre ? ` − 前置步骤 ${t.pre} 分` : ''} − 步行到 ${t.gateName} 号口`, `登機 ${hm(t.boardTime)} − 緩衝 30 分鐘${t.pre ? ` − 之前步驟 ${t.pre} 分鐘` : ''} − 行去 ${t.gateName} 號閘口`, `Boarding ${hm(t.boardTime)} − 30 min buffer${t.pre ? ` − ${t.pre} min steps` : ''} − walk to gate ${t.gateName}`)}</div>
@@ -162,15 +173,6 @@ export const Home = ({ t, goMap, openOrder, openHelp, arrive, goExplore }: { t: 
           </div>
         )}
       </section>
-
-      {/* ---- one-tap route: a slim bar that unfolds ---- */}
-      {showGen && (genOpen
-        ? <RouteGen t={t} onClose={() => setGenOpen(false)} onExplore={goExplore} />
-        : <button onClick={() => setGenOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 8, border: 'none', borderRadius: 999, padding: '7px 8px 7px 14px', cursor: 'pointer', color: '#fff', textAlign: 'left', background: `linear-gradient(90deg, ${C.jade}, ${C.mint}, #C9A227, ${C.mint}, ${C.jade})`, backgroundSize: '200% 100%', animation: `rise .3s ${ease}, ribbon 9s linear infinite`, boxShadow: '0 6px 16px rgba(0,93,91,.18)' }}>
-            <span aria-hidden style={{ fontSize: T.md }}>✦</span>
-            <span style={{ flex: 1, minWidth: 0, fontSize: T.sm, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{L('一键规划顺路路线', '一撳排好順路路線', 'Plan a route for me')}</span>
-            <span style={{ fontFamily: mono, fontSize: T.xs, fontWeight: 700, background: 'rgba(255,255,255,.22)', borderRadius: 999, padding: '3px 9px', flexShrink: 0 }}>{dur(t.left)}</span>
-          </button>)}
 
       <PlanList t={t} />
       <div style={{ display: 'flex', gap: 8 }}>
