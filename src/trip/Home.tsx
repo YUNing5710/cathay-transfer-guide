@@ -59,29 +59,28 @@ export const Home = ({ t, goMap, openOrder, openHelp, arrive, goExplore }: { t: 
   return (
     <div style={{ padding: '12px 14px 16px', display: 'grid', gap: 10 }}>
       {/* ---- the hero: where to go now ---- */}
-      <section style={{ background: `linear-gradient(160deg, ${C.jade} 0%, ${C.jadeDeep} 100%)`, color: '#fff', borderRadius: 22, padding: '8px 16px 14px', boxShadow: '0 10px 28px rgba(0,73,74,.22)', position: 'relative', overflow: 'hidden' }}>
-        <div aria-hidden style={{ position: 'absolute', right: -40, top: -40, width: 160, height: 160, borderRadius: 80, background: 'radial-gradient(closest-side, rgba(127,224,213,.18), transparent)' }} />
-        <div style={{ display: 'grid', justifyItems: 'center', textAlign: 'center', gap: 2 }}>
+      <section style={{ background: C.paper, color: C.ink, borderRadius: 22, padding: '10px 16px 14px', border: `1px solid ${C.line}`, boxShadow: '0 8px 24px rgba(0,60,58,.07)', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ display: 'grid', justifyItems: 'center', textAlign: 'center', gap: 2 }}>
           <div style={{ position: 'relative', display: 'grid', placeItems: 'center', width: 150, height: 150 }}>
-            <div aria-hidden style={{ position: 'absolute', inset: 10, borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(255,255,255,.95), rgba(214,244,239,.55) 62%, rgba(255,255,255,0) 100%)', boxShadow: '0 0 0 1px rgba(255,255,255,.25), 0 10px 30px rgba(0,0,0,.18)' }} />
-            <div style={{ position: 'relative', filter: 'drop-shadow(0 6px 10px rgba(0,40,40,.35))' }}><Arrow3D angle={angle} size={136} mode={mode} tilt={compass.state === 'on' ? compass.tilt : 58} /></div>
+            <div aria-hidden style={{ position: 'absolute', inset: 14, borderRadius: '50%', border: `1.5px solid ${C.jadeSoft}`, background: 'radial-gradient(closest-side, #F4FAF8, #fff)' }} />
+            <div style={{ position: 'relative', filter: 'drop-shadow(0 8px 10px rgba(0,60,58,.22))' }}><Arrow3D angle={angle} size={136} mode={mode} tilt={compass.state === 'on' ? compass.tilt : 58} /></div>
           </div>
           <div style={{ minWidth: 0, width: '100%' }}>
-            <div style={{ fontSize: T.xs, fontWeight: 700, letterSpacing: 0.6, opacity: 0.75 }}>
+            <div style={{ fontSize: T.xs, fontWeight: 700, letterSpacing: 0.6, color: C.muted }}>
               {t.atSec ? (steps > 1 ? L(`入境转机 ${stepNo}/${steps}`, `入境轉機 ${stepNo}/${steps}`, `Re-entry ${stepNo}/${steps}`) : L('第一步', '第一步', 'First')) : urgent ? L('立即前往', '即刻去', 'Go now') : next ? L('下一站', '下一站', 'Next') : L('登机口', '閘口', 'Gate')}
             </div>
             <div key={to} style={{ fontSize: T.xl, fontWeight: 800, lineHeight: 1.2, marginTop: 2, animation: `rise .35s ${ease}` }}>{nameOf(to)}</div>
-            <div style={{ fontSize: T.sm, opacity: 0.85, marginTop: 4, lineHeight: 1.45 }}>{leg ? legText : L('你已在此处', '你已經喺度', 'You are here')}</div>
-            {leg && <div style={{ fontFamily: mono, fontSize: T.xs, opacity: 0.6, marginTop: 3 }}>{r.meters} m · {dur(Math.max(1, Math.ceil(r.meters / t.pace)))}</div>}
+            <div style={{ fontSize: T.sm, color: C.muted, marginTop: 4, lineHeight: 1.45 }}>{leg ? legText : L('你已在此处', '你已經喺度', 'You are here')}</div>
+            {leg && <div style={{ fontFamily: mono, fontSize: T.xs, color: C.faint, marginTop: 3 }}>{r.meters} m · {dur(Math.max(1, Math.ceil(r.meters / t.pace)))}</div>}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-          <button onClick={goMap} style={{ ...btn(), flex: 1, background: 'rgba(255,255,255,.14)', border: '1px solid rgba(255,255,255,.22)' }}>{L('分步导航', '一步步帶路', 'Navigate')}</button>
-          <button onClick={() => arrive(t.atSec ? t.preTarget : targetId)} style={{ ...btn(), flex: 1, background: '#fff', color: C.jade, border: 'none' }}>
+          <button onClick={goMap} style={{ ...btn('ghost'), flex: 1 }}>{L('分步导航', '一步步帶路', 'Navigate')}</button>
+          <button onClick={() => arrive(t.atSec ? t.preTarget : targetId)} style={{ ...btn(), flex: 1 }}>
             {t.atSec ? stepLabel(t.preTarget) : urgent || !next ? L('已到登机口', '到咗閘口', 'At the gate') : L('完成这一站', '搞掂呢站', 'Done here')}
           </button>
         </div>
-        <div style={{ marginTop: 6, minHeight: 0 }}><SensorHint dark /></div>
+        <div style={{ marginTop: 6, minHeight: 0, display: 'grid', justifyItems: 'center' }}><SensorHint /></div>
       </section>
 
       {/* ---- notices: one compact strip each ---- */}
